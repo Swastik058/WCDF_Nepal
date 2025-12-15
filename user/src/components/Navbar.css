@@ -1,0 +1,145 @@
+.navbar {
+  background-color: #fff;
+  color: #333;
+  padding: 15px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 100;
+}
+
+.nav-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 30px;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo-graphic {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.logo-figure {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #ff6b6b, #ffa500);
+  border-radius: 50% 50% 50% 0;
+  position: relative;
+}
+
+.logo-figure:first-child {
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+}
+
+.logo-figure:last-child {
+  background: linear-gradient(135deg, #ffa500, #ff6b6b);
+  transform: scaleX(-1);
+}
+
+.logo-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  font-family: 'Arial', sans-serif;
+}
+
+.nav-links {
+  display: flex;
+  gap: 25px;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: #333;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  transition: color 0.3s;
+  position: relative;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: #4ecdc4;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-name {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.login-link,
+.signup-link {
+  text-decoration: none;
+  padding: 8px 20px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.login-link {
+  color: #333;
+  border: 1px solid #ddd;
+  background: transparent;
+}
+
+.login-link:hover {
+  background: #f5f5f5;
+  border-color: #4ecdc4;
+  color: #4ecdc4;
+}
+
+.signup-link {
+  background: linear-gradient(135deg, #4ecdc4, #44a08d);
+  color: white;
+}
+
+.signup-link:hover {
+  background: linear-gradient(135deg, #44a08d, #4ecdc4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+}
+
+@media (max-width: 768px) {
+  .nav-content {
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .nav-links {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .nav-actions {
+    order: 2;
+  }
+}
+
