@@ -48,15 +48,34 @@ function Landing() {
         <Navbar />
       )}
       
+      
+      
       {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-image">
           <div className="hero-overlay"></div>
           <div className="hero-content">
             <h1 className="hero-text">Small Act. Big Impact</h1>
-                       <button className="donate-button" onClick={() => navigate('/donate')}>
-              Donate Now
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+              <button 
+                className="donate-button" 
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Donate button clicked, navigating to /donate')
+                  try {
+                    navigate('/donate')
+                  } catch (error) {
+                    console.error('Navigation error:', error)
+                  }
+                }}
+              >
+                Donate Now
+              </button>
+              <a href="/donate" style={{ color: 'white', textDecoration: 'underline', fontSize: '14px' }}>
+                Direct link to donate (test)
+              </a>
+            </div>
           </div>
         </div>
         <div className="facebook-widget">

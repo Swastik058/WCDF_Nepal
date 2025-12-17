@@ -3,7 +3,7 @@ import Landing from '../pages/Landing'
 import Login from '../pages/Login'
 import Signup from '../pages/Signup'
 import Donate from '../pages/Donate'
-import Booking from '../pages/Booking'
+import KhaltiVerify from '../pages/KhaltiVerify'
 import ProtectedRoute from '../components/ProtectedRoute'
 
 function AppRoutes() {
@@ -13,15 +13,8 @@ function AppRoutes() {
       <Route path="/home" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
-      <Route
-        path="/donate"
-        element={
-          <ProtectedRoute>
-            <Donate />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/booking" element={<Booking />} />
+      <Route path="/donate" element={<Donate />} />
+      <Route path="/khalti/verify" element={<KhaltiVerify />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
