@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
 const dbConnect = require('./config/dbConnect');
 
+
 // Load environment variables
 dotenv.config();
 
@@ -25,8 +26,10 @@ app.use('/api/auth', authRoutes);
 const donationRoutes = require('./routes/DonationRoutes');
 app.use('/api/donation', donationRoutes);
 
-const bookingRoutes = require('./routes/BookingRoutes');
-app.use('/api/booking', bookingRoutes);
+
+// Khalti routes
+const khaltiRoutes = require("./routes/khaltiRoutes");
+app.use("/api/khalti", khaltiRoutes);
 
 // Default route
 app.get('/', (req, res) => {

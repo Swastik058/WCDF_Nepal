@@ -40,3 +40,52 @@ export const getUserDonations = async () => {
   }
 }
 
+// Initiate Khalti donation 
+export const initiateKhaltiDonation = async (donationData) => {
+  try {
+    const token = getToken()
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    
+    // Add authorization header only if token exists
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await axios.post(
+      `${API_URL}/khalti/initiate`,
+      donationData,
+      { headers }
+    )
+
+    return response.data
+  } catch (error) {
+    throw error.response?.data || { message: 'Khalti payment initiation failed' }
+  }
+}
+
+// Verify Khalti payment
+export const verifyKhaltiPayment = async (pidx) => {
+  try {
+    const token = getToken()
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    
+    // Add authorization header only if token exists
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await axios.post(
+      `${API_URL}/khalti/verify`,
+      { pidx },
+      { headers }
+    )
+
+    return response.data
+  } catch (error) {
+    throw error.response?.data || { message: 'Payment verification failed' }
+  }
+}
