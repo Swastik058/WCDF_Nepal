@@ -36,6 +36,21 @@ app.get('/', (req, res) => {
   res.send('WCDF NGO Backend is running!');
 });
 
+// Test route for Khalti verification endpoint
+app.get('/api/khalti/test', (req, res) => {
+  res.json({
+    message: 'Khalti verification endpoint is accessible',
+    timestamp: new Date().toISOString(),
+    environment: {
+      CLIENT_URL: process.env.CLIENT_URL,
+      SERVER_URL: process.env.SERVER_URL,
+      PORT: process.env.PORT,
+      NODE_ENV: process.env.NODE_ENV
+    },
+    note: 'Frontend should be running on port 3000'
+  });
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);

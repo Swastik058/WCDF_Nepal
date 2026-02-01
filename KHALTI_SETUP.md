@@ -2,6 +2,14 @@
 
 This document explains how to set up and use the Khalti payment integration for donations.
 
+## Authentication Requirement
+
+**Important**: Only authenticated (logged-in) users can make donations. This ensures:
+- Proper donation tracking and history
+- User accountability and verification
+- Secure payment processing
+- Personalized donation experience
+
 ## Server Setup
 
 ### 1. Environment Variables
@@ -30,28 +38,40 @@ For testing purposes, you can use Khalti's test credentials:
 
 ## Payment Flow
 
-### 1. Initiate Payment
-- User fills donation form on `/donate` page
-- Frontend calls `POST /api/khalti/initiate` with donation data
-- Server creates pending donation record in database
+### 1. Authentication Check
+- User must be logged in to access donation page
+- Non-authenticated users are redirected to login page
+- After login, users are redirected back to donation page
+
+### 2. Initiate Payment
+- Authenticated user fills donation form on `/donate` page
+- Frontend calls `POST /api/khalti/initiate` with donation data and auth token
+- Server validates user authentication and creates pending donation record
 - Server calls Khalti API to initiate payment
 - Server returns Khalti payment URL
 - User is redirected to Khalti payment page
 
-### 2. Payment Processing
+### 3. Payment Processing
 - User completes payment on Khalti
 - Khalti redirects user to `/khalti/verify?pidx=xxx&txnId=xxx&amount=xxx`
 
-### 3. Payment Verification
-- Frontend calls `POST /api/khalti/verify` with pidx
+### 4. Payment Verification
+- Frontend calls `POST /api/khalti/verify` with pidx and auth token
+- Server verifies user authentication and donation ownership
 - Server calls Khalti lookup API to verify payment status
 - Server updates donation status based on verification result
-- User sees success/failure message
+- User sees success/failure message and is redirected to dashboard
 
 ## API Endpoints
 
 ### POST /api/khalti/initiate
-Initiates a Khalti payment for donation.
+Initiates a Khalti payment for donation. **Requires authentication.**
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
 
 **Request Body:**
 ```json
@@ -75,7 +95,13 @@ Initiates a Khalti payment for donation.
 ```
 
 ### POST /api/khalti/verify
-Verifies a Khalti payment.
+Verifies a Khalti payment. **Requires authentication.**
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
 
 **Request Body:**
 ```json
@@ -102,8 +128,12 @@ Verifies a Khalti payment.
 
 ## Frontend Routes
 
-- `/donate` - Donation form (accessible to all users)
-- `/khalti/verify` - Payment verification page (Khalti redirects here)
+- `/` - Landing page (public)
+- `/login` - Login page (public)
+- `/signup` - Signup page (public)
+- `/donate` - Donation form (requires authentication)
+- `/dashboard` - User dashboard with donation history (requires authentication)
+- `/khalti/verify` - Payment verification page (requires authentication)
 
 ## Database Schema
 
@@ -121,20 +151,27 @@ The donation record includes:
 
 ## Security Features
 
-1. **Server-side verification** - All payment verification happens on the server
-2. **Amount validation** - Server verifies the payment amount matches the donation
-3. **Status tracking** - Donations are tracked through their lifecycle
-4. **Optional authentication** - Works for both authenticated and guest users
-5. **Error handling** - Comprehensive error handling for failed payments
+1. **Authentication Required** - All donation operations require user authentication
+2. **User Ownership Validation** - Users can only access their own donations
+3. **Server-side verification** - All payment verification happens on the server
+4. **Amount validation** - Server verifies the payment amount matches the donation
+5. **Status tracking** - Donations are tracked through their lifecycle
+6. **Secure token handling** - JWT tokens used for authentication
+7. **Error handling** - Comprehensive error handling for failed payments
 
 ## Testing
 
-1. Start the server: `cd server && npm start`
-2. Start the frontend: `cd user && npm run dev`
-3. Navigate to `/donate`
-4. Fill in donation details
-5. Use Khalti test credentials for payment
-6. Verify the payment flow works correctly
+1. **Create an account**: Sign up at `/signup` or login at `/login`
+2. **Start the servers**: 
+   ```bash
+   cd server && npm start
+   cd user && npm run dev
+   ```
+3. **Navigate to `/donate`** (will redirect to login if not authenticated)
+4. **Fill in donation details**
+5. **Use Khalti test credentials** for payment
+6. **Verify the payment flow** works correctly
+7. **Check dashboard** at `/dashboard` to see donation history
 
 ## Production Deployment
 

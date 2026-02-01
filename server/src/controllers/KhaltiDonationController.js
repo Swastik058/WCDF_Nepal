@@ -1,5 +1,7 @@
 const axios = require("axios");
 const Donation = require("../models/Donation");
+const { recordDonationOnChain } = require("../blockchain/ledger"); 
+
 
 /**
  * STEP 1: Initiate Khalti Payment
@@ -8,6 +10,13 @@ const Donation = require("../models/Donation");
 exports.initiateKhaltiPayment = async (req, res) => {
   try {
     const { donorName, email, amount, purpose, description } = req.body;
+
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ 
+        message: "Authentication required to make donations" 
+      });
+    }
 
     // Validation
     if (!donorName || !email || !amount || amount <= 0) {
@@ -27,14 +36,13 @@ exports.initiateKhaltiPayment = async (req, res) => {
       paymentMethod: "khalti",
       purpose: purpose || "General donation",
       description: description || "",
-      userId: req.user?.id || null,
+      userId: req.user.id,
       status: "pending"
     });
 
-    // Khalti payment initiation payload
     const payload = {
-      return_url: `${process.env.CLIENT_URL || 'http://localhost:5173'}/khalti/verify`,
-      website_url: process.env.CLIENT_URL || 'http://localhost:5173',
+      return_url: `${process.env.SERVER_URL || 'http://localhost:5000'}/api/khalti/verify`,
+      website_url: process.env.CLIENT_URL || 'http://localhost:3000',
       amount: amountInPaisa,
       purchase_order_id: donation._id.toString(),
       purchase_order_name: "WCDF Nepal Donation",
@@ -44,7 +52,6 @@ exports.initiateKhaltiPayment = async (req, res) => {
       }
     };
 
-    // Call Khalti API
     const response = await axios.post(
       "https://a.khalti.com/api/v2/epayment/initiate/",
       payload,
@@ -56,7 +63,6 @@ exports.initiateKhaltiPayment = async (req, res) => {
       }
     );
 
-    // Save pidx to donation record
     donation.pidx = response.data.pidx;
     await donation.save();
 
@@ -69,40 +75,31 @@ exports.initiateKhaltiPayment = async (req, res) => {
 
   } catch (error) {
     console.error("Khalti Initiation Error:", error.response?.data || error.message);
-    
-    // Return specific error from Khalti if available
-    if (error.response?.data) {
-      return res.status(400).json({ 
-        message: "Khalti payment initiation failed",
-        error: error.response.data
-      });
-    }
-    
     res.status(500).json({ message: "Failed to initiate Khalti payment" });
   }
 };
 
-
-/**
- * STEP 2: Verify Khalti Payment
- * POST /api/khalti/verify
- */
 exports.verifyKhaltiPayment = async (req, res) => {
   try {
-    const { pidx } = req.body;
+    const { pidx } = req.query;
+
+    console.log('Khalti verification started for pidx:', pidx);
 
     if (!pidx) {
-      return res.status(400).json({ message: "pidx is required for verification" });
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/donate?payment=failed&error=missing_pidx`);
     }
 
-    // Find donation record
     const donation = await Donation.findOne({ pidx });
+    
     if (!donation) {
-      return res.status(404).json({ message: "Donation record not found" });
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/donate?payment=failed&error=donation_not_found`);
     }
 
-    // Call Khalti lookup API to verify payment
-    const response = await axios.post(
+    if (donation.status === 'completed') {
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard?payment=success`);
+    }
+
+    const khaltiResponse = await axios.post(
       "https://a.khalti.com/api/v2/epayment/lookup/",
       { pidx },
       {
@@ -113,63 +110,31 @@ exports.verifyKhaltiPayment = async (req, res) => {
       }
     );
 
-    const { status, transaction_id, total_amount } = response.data;
+    const { status, transaction_id, total_amount } = khaltiResponse.data;
 
-    // Update donation based on payment status
     if (status === "Completed") {
-      // Verify amount matches (Khalti returns amount in paisa)
-      const expectedAmount = Math.round(donation.amount * 100);
-      if (total_amount !== expectedAmount) {
-        console.warn(`Amount mismatch: Expected ${expectedAmount}, Got ${total_amount}`);
-      }
-
       donation.status = "completed";
       donation.transactionId = transaction_id;
       await donation.save();
 
-      return res.status(200).json({
-        success: true,
-        message: "Payment verified successfully",
-        donation: {
-          id: donation._id,
-          donorName: donation.donorName,
-          amount: donation.amount,
-          status: donation.status,
-          transactionId: donation.transactionId,
-          createdAt: donation.createdAt
-        }
-      });
+      //  BLOCKCHAIN RECORD (ONLY AFTER CONFIRMED PAYMENT)
+     await recordDonationOnChain(
+  donation.createdAt.getTime(),   // always numeric, always unique
+  Math.round(donation.amount * 100)
+);
+
+
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard?payment=success`);
+      
     } else {
-      // Payment not completed - update status accordingly
-      const failureStatus = ["Expired", "User canceled", "Failed"].includes(status) ? "failed" : "pending";
-      donation.status = failureStatus;
+      donation.status = "failed";
       await donation.save();
 
-      return res.status(400).json({
-        success: false,
-        message: `Payment not completed. Status: ${status}`,
-        donation: {
-          id: donation._id,
-          status: donation.status
-        }
-      });
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/donate?payment=failed&reason=${encodeURIComponent(status)}`);
     }
 
   } catch (error) {
-    console.error("Khalti Verification Error:", error.response?.data || error.message);
-    
-    // Return specific error from Khalti if available
-    if (error.response?.data) {
-      return res.status(400).json({ 
-        success: false,
-        message: "Payment verification failed",
-        error: error.response.data
-      });
-    }
-    
-    res.status(500).json({ 
-      success: false,
-      message: "Failed to verify payment" 
-    });
+    console.error("Khalti verification error:", error.message);
+    return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/donate?payment=failed&error=verification_failed`);
   }
 };

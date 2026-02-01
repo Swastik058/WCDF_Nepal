@@ -44,19 +44,20 @@ export const getUserDonations = async () => {
 export const initiateKhaltiDonation = async (donationData) => {
   try {
     const token = getToken()
-    const headers = {
-      'Content-Type': 'application/json'
-    }
     
-    // Add authorization header only if token exists
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
+    if (!token) {
+      throw new Error('Authentication required. Please log in to make a donation.')
     }
 
     const response = await axios.post(
       `${API_URL}/khalti/initiate`,
       donationData,
-      { headers }
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
     )
 
     return response.data
@@ -65,27 +66,5 @@ export const initiateKhaltiDonation = async (donationData) => {
   }
 }
 
-// Verify Khalti payment
-export const verifyKhaltiPayment = async (pidx) => {
-  try {
-    const token = getToken()
-    const headers = {
-      'Content-Type': 'application/json'
-    }
-    
-    // Add authorization header only if token exists
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    }
-
-    const response = await axios.post(
-      `${API_URL}/khalti/verify`,
-      { pidx },
-      { headers }
-    )
-
-    return response.data
-  } catch (error) {
-    throw error.response?.data || { message: 'Payment verification failed' }
-  }
-}
+// Note: verifyKhaltiPayment is no longer needed on frontend
+// Verification is handled entirely by backend redirect flow

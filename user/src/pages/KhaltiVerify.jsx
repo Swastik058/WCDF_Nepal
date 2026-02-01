@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { verifyKhaltiPayment } from '../services/donationService'
+import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import Loader from '../components/Loader'
@@ -9,46 +9,69 @@ import './KhaltiVerify.css'
 function KhaltiVerify() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [status, setStatus] = useState('verifying') // verifying, success, failed
-  const [message, setMessage] = useState('Verifying your payment...')
-  const [donation, setDonation] = useState(null)
+  const { user } = useAuth()
+  const [status, setStatus] = useState('loading')
+  const [message, setMessage] = useState('Processing payment verification...')
+  const [donationDetails, setDonationDetails] = useState(null)
 
   useEffect(() => {
+    // Get parameters from URL (set by backend redirect)
+    const urlStatus = searchParams.get('status')
     const pidx = searchParams.get('pidx')
-    const txnId = searchParams.get('txnId')
+    const donationId = searchParams.get('donation_id')
     const amount = searchParams.get('amount')
-    const mobile = searchParams.get('mobile')
+    const error = searchParams.get('error')
+    const khaltiStatus = searchParams.get('khalti_status')
 
-    if (!pidx) {
-      setStatus('failed')
-      setMessage('Invalid payment verification link')
-      return
-    }
+    console.log('KhaltiVerify received params:', { urlStatus, pidx, donationId, amount, error, khaltiStatus })
 
-    verifyPayment(pidx)
-  }, [searchParams])
-
-  const verifyPayment = async (pidx) => {
-    try {
-      const response = await verifyKhaltiPayment(pidx)
+    if (urlStatus === 'success') {
+      setStatus('success')
+      setMessage('Payment completed successfully!')
       
-      if (response.success) {
-        setStatus('success')
-        setMessage('Payment verified successfully!')
-        setDonation(response.donation)
-      } else {
-        setStatus('failed')
-        setMessage(response.message || 'Payment verification failed')
+      if (donationId && amount) {
+        setDonationDetails({
+          id: donationId,
+          amount: amount,
+          pidx: pidx
+        })
       }
-    } catch (error) {
-      console.error('Payment verification error:', error)
+
+      // Auto-redirect to dashboard after showing success
+      if (user) {
+        localStorage.setItem('fromPaymentVerification', 'true')
+        setTimeout(() => {
+          navigate('/dashboard')
+        }, 3000)
+      }
+    } else if (urlStatus === 'failed') {
       setStatus('failed')
-      setMessage(error.message || 'Failed to verify payment')
+      
+      if (error === 'missing_pidx') {
+        setMessage('Payment verification failed: Missing payment ID')
+      } else if (error === 'donation_not_found') {
+        setMessage('Payment verification failed: Donation record not found')
+      } else if (error === 'verification_failed') {
+        setMessage('Payment verification failed: Unable to verify with Khalti')
+      } else if (khaltiStatus) {
+        setMessage(`Payment not completed. Status: ${khaltiStatus}`)
+      } else {
+        setMessage('Payment verification failed')
+      }
+    } else {
+      // No status parameter - shouldn't happen with proper flow
+      setStatus('failed')
+      setMessage('Invalid verification request')
     }
-  }
+  }, [searchParams, user, navigate])
 
   const handleContinue = () => {
-    navigate('/')
+    if (user && status === 'success') {
+      localStorage.setItem('fromPaymentVerification', 'true')
+      navigate('/dashboard')
+    } else {
+      navigate('/')
+    }
   }
 
   return (
@@ -57,56 +80,52 @@ function KhaltiVerify() {
       
       <div className="verify-container">
         <div className="verify-card">
-          {status === 'verifying' && (
+          {status === 'loading' && (
             <div className="verify-loading">
               <Loader />
-              <h2>Verifying Payment</h2>
-              <p>Please wait while we verify your payment with Khalti...</p>
+              <h2>Processing Payment</h2>
+              <p>{message}</p>
             </div>
           )}
 
           {status === 'success' && (
             <div className="verify-success">
-              <div className="success-icon">✅</div>
+              <div className="success-icon">Success</div>
               <h2>Payment Successful!</h2>
               <p>{message}</p>
               
-              {donation && (
+              {donationDetails && (
                 <div className="donation-details">
                   <h3>Donation Details</h3>
                   <div className="detail-item">
-                    <span>Donor:</span>
-                    <span>{donation.donorName}</span>
-                  </div>
-                  <div className="detail-item">
                     <span>Amount:</span>
-                    <span>NPR {donation.amount}</span>
+                    <span>NPR {donationDetails.amount}</span>
                   </div>
                   <div className="detail-item">
-                    <span>Transaction ID:</span>
-                    <span>{donation.transactionId}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span>Date:</span>
-                    <span>{new Date(donation.createdAt).toLocaleDateString()}</span>
+                    <span>Payment ID:</span>
+                    <span>{donationDetails.pidx}</span>
                   </div>
                 </div>
               )}
 
+              <div className="redirect-notice">
+                <p>Redirecting to dashboard in a few seconds...</p>
+              </div>
+
               <button onClick={handleContinue} className="continue-button">
-                Continue to Home
+                {user ? 'Go to Dashboard Now' : 'Continue to Home'}
               </button>
             </div>
           )}
 
           {status === 'failed' && (
             <div className="verify-failed">
-              <div className="error-icon">❌</div>
+              <div className="error-icon">Failed</div>
               <h2>Payment Verification Failed</h2>
               <p>{message}</p>
               
               <div className="failed-actions">
-                <button onClick={handleContinue} className="continue-button">
+                <button onClick={() => navigate('/')} className="continue-button">
                   Back to Home
                 </button>
                 <button onClick={() => navigate('/donate')} className="retry-button">

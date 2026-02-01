@@ -6,9 +6,13 @@ const {
   verifyKhaltiPayment
 } = require("../controllers/KhaltiDonationController");
 
-const optionalAuth = require("../middleware/optionalAuth");
+const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/initiate", optionalAuth, initiateKhaltiPayment);
-router.post("/verify", optionalAuth, verifyKhaltiPayment);
+// POST /api/khalti/initiate - Initiate payment (requires authentication)
+router.post("/initiate", authMiddleware, initiateKhaltiPayment);
+
+// GET /api/khalti/verify - Verify payment (called by Khalti, no auth needed)
+// This is the callback URL that Khalti calls after payment
+router.get("/verify", verifyKhaltiPayment);
 
 module.exports = router;
