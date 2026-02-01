@@ -31,7 +31,15 @@ function Login() {
     try {
       const response = await login(formData.email, formData.password)
       loginContext(response.user)
-      navigate('/')
+      
+      // Check if user was trying to donate before login
+      const intendedPath = localStorage.getItem('intendedPath')
+      if (intendedPath) {
+        localStorage.removeItem('intendedPath')
+        navigate(intendedPath)
+      } else {
+        navigate('/')
+      }
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.')
     } finally {

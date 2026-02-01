@@ -139,6 +139,23 @@
   border-bottom-color: #1a5f5a;
 }
 
+.dashboard-link {
+  background: linear-gradient(135deg, #1a5f5a, #2d8a7f);
+  color: white !important;
+  padding: 8px 16px !important;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.dashboard-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(26, 95, 90, 0.3);
+  border-bottom: none !important;
+}
+
 .nav-user {
   display: flex;
   align-items: center;
@@ -386,8 +403,21 @@
   border-color: rgba(255, 255, 255, 0.4);
 }
 
+.cta-card.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cta-card.clickable:hover {
+  transform: translateY(-8px);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
 .cta-icon {
-  font-size: 3rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1a5f5a;
   margin-bottom: 20px;
   height: 80px;
   display: flex;
@@ -397,6 +427,8 @@
   border-radius: 50%;
   width: 80px;
   margin: 0 auto 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .cta-title {
@@ -503,8 +535,12 @@
 }
 
 .map-pin {
-  font-size: 3rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a5f5a;
   margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .map-label {

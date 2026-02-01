@@ -27,7 +27,7 @@ function Navbar() {
           <a href="#gallery" className="nav-link">GALLERY</a>
           <a href="#contact" className="nav-link">CONTACT</a>
           <a href="#programs" className="nav-link">PROGRAMS</a>
-          <a href="#events" className="nav-link">Events/Campaigns</a>
+          <Link to="/events" className="nav-link">Events/Campaigns</Link>
         </div>
         <div className="nav-actions">
           {user ? (

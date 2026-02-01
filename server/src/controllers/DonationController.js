@@ -1,5 +1,36 @@
 const Donation = require("../models/Donation");
 
+// GET /donation - Get user donations
+exports.getUserDonations = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ 
+        message: "Authentication required to view donations" 
+      });
+    }
+
+    // Find donations for the authenticated user
+    const donations = await Donation.find({ userId })
+      .sort({ createdAt: -1 }) // Most recent first
+      .select('-__v'); // Exclude version field
+
+    res.status(200).json({
+      message: "Donations retrieved successfully",
+      donations,
+      count: donations.length
+    });
+
+  } catch (err) {
+    console.error("Get donations error:", err);
+    res.status(500).json({ 
+      message: "Failed to retrieve donations",
+      error: process.env.NODE_ENV === 'development' ? err.message : "Internal server error"
+    });
+  }
+};
+
 // POST /donation - Create a new donation
 exports.createDonation = async (req, res) => {
   try {
@@ -55,8 +86,9 @@ exports.createDonation = async (req, res) => {
       });
     }
 
-    // Optional: Link to user if authenticated
-    const userId = req.user?.id || null;
+    //  Link to user if authenticated
+    const userId = req.user.id;  // req.user always exists because route is protected
+
 
     // Create donation record
     const donation = await Donation.create({
@@ -107,3 +139,4 @@ exports.createDonation = async (req, res) => {
     });
   }
 };
+

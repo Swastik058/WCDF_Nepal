@@ -33,7 +33,12 @@ function Landing() {
               <a href="#gallery" className="nav-link">GALLERY</a>
               <a href="#contact" className="nav-link">CONTACT</a>
               <a href="#programs" className="nav-link">PROGRAMS</a>
-              <a href="#events" className="nav-link">Events/Campaigns</a>
+              <button 
+                onClick={() => navigate('/dashboard')} 
+                className="nav-link dashboard-link"
+              >
+                DASHBOARD
+              </button>
             </div>
             <div className="nav-user">
               <span className="user-name">{user.name}</span>
@@ -56,26 +61,19 @@ function Landing() {
           <div className="hero-overlay"></div>
           <div className="hero-content">
             <h1 className="hero-text">Small Act. Big Impact</h1>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
-              <button 
-                className="donate-button" 
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  console.log('Donate button clicked, navigating to /donate')
-                  try {
-                    navigate('/donate')
-                  } catch (error) {
-                    console.error('Navigation error:', error)
-                  }
-                }}
-              >
-                Donate Now
-              </button>
-              <a href="/donate" style={{ color: 'white', textDecoration: 'underline', fontSize: '14px' }}>
-                Direct link to donate (test)
-              </a>
-            </div>
+            <button 
+              className="donate-button" 
+              onClick={() => {
+                if (user) {
+                  navigate('/donate')
+                } else {
+                  localStorage.setItem('intendedPath', '/donate')
+                  navigate('/login')
+                }
+              }}
+            >
+              {user ? 'Donate Now' : 'Login to Donate'}
+            </button>
           </div>
         </div>
         <div className="facebook-widget">
@@ -125,23 +123,35 @@ function Landing() {
       {/* Call to Action Grid Section */}
       <section className="cta-grid-section">
         <div className="cta-grid">
-          <div className="cta-card">
+          <div 
+            className="cta-card clickable" 
+            onClick={() => {
+              if (user) {
+                navigate('/donate')
+              } else {
+                localStorage.setItem('intendedPath', '/donate')
+                navigate('/login')
+              }
+            }}
+          >
             <div className="cta-icon">$</div>
             <h3 className="cta-title">Make a DONATION</h3>
-            <p className="cta-description">Support us in our various welfare programs</p>
+            <p className="cta-description">
+              {user ? 'Support us in our various welfare programs' : 'Login to support our welfare programs'}
+            </p>
           </div>
           <div className="cta-card">
-            <div className="cta-icon">❤️</div>
+            <div className="cta-icon">Heart</div>
             <h3 className="cta-title">Sponsor a Child</h3>
             <p className="cta-description">Every child you lift today lights up the world tomorrow.</p>
           </div>
           <div className="cta-card">
-            <div className="cta-icon">👥</div>
+            <div className="cta-icon">People</div>
             <h3 className="cta-title">Find about Our Programs</h3>
             <p className="cta-description">Learn about our various welfare programs</p>
           </div>
           <div className="cta-card">
-            <div className="cta-icon">🤝</div>
+            <div className="cta-icon">Help</div>
             <h3 className="cta-title">Register to Volunteer</h3>
             <p className="cta-description">Signup as volunteer</p>
           </div>
@@ -168,7 +178,7 @@ function Landing() {
             </p>
             <div className="map-container">
               <div className="map-placeholder">
-                <div className="map-pin">📍</div>
+                <div className="map-pin">Location</div>
                 <div className="map-label">WCDF-Mayaghar</div>
               </div>
             </div>
