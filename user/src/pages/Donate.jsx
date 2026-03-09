@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { initiateKhaltiDonation } from '../services/donationService'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
-import './Donate.css'
 
 const DONATION_PURPOSES = [
   { value: 'General donation', label: 'General Support' },
@@ -13,7 +12,7 @@ const DONATION_PURPOSES = [
   { value: 'Food and nutrition', label: 'Food & Nutrition' },
   { value: 'Building project', label: 'Building Project' },
   { value: 'Emergency relief', label: 'Emergency Relief' },
-  { value: 'Other', label: 'Other' }
+  { value: 'Other', label: 'Other' },
 ]
 
 const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000, 10000]
@@ -23,66 +22,52 @@ function Donate() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!user) {
-      navigate('/login')
-    }
-    
-    // Check for payment failure from redirect
-    const paymentStatus = searchParams.get('payment')
-    const reason = searchParams.get('reason')
-    const errorType = searchParams.get('error')
-    
-    if (paymentStatus === 'failed') {
-      let errorMessage = 'Payment failed. Please try again.'
-      
-      if (reason) {
-        errorMessage = `Payment failed: ${reason}`
-      } else if (errorType === 'verification_failed') {
-        errorMessage = 'Payment verification failed due to network issues. Please try again.'
-      } else if (errorType === 'missing_pidx') {
-        errorMessage = 'Payment verification failed: Missing payment ID. Please try again.'
-      } else if (errorType === 'donation_not_found') {
-        errorMessage = 'Payment verification failed: Donation record not found. Please contact support.'
-      }
-      
-      setError(errorMessage)
-      // Clean up URL parameters
-      setSearchParams({})
-    }
-  }, [user, navigate, searchParams, setSearchParams])
-
   const [formData, setFormData] = useState({
     donorName: user?.name || '',
     email: user?.email || '',
     amount: '',
     purpose: 'General donation',
-    description: ''
+    description: '',
   })
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedQuickAmount, setSelectedQuickAmount] = useState(null)
 
+  useEffect(() => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
+    const paymentStatus = searchParams.get('payment')
+    const reason = searchParams.get('reason')
+    const errorType = searchParams.get('error')
+
+    if (paymentStatus === 'failed') {
+      let errorMessage = 'Payment failed. Please try again.'
+
+      if (reason) errorMessage = `Payment failed: ${reason}`
+      else if (errorType === 'verification_failed') errorMessage = 'Payment verification failed due to network issues. Please try again.'
+      else if (errorType === 'missing_pidx') errorMessage = 'Payment verification failed: Missing payment ID. Please try again.'
+      else if (errorType === 'donation_not_found') errorMessage = 'Payment verification failed: Donation record not found. Please contact support.'
+
+      setError(errorMessage)
+      setSearchParams({})
+    }
+  }, [user, navigate, searchParams, setSearchParams])
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }))
     setError('')
-    
-    // Clear quick amount selection if user types custom amount
+
     if (e.target.name === 'amount') {
       setSelectedQuickAmount(null)
     }
   }
 
   const handleQuickAmount = (amount) => {
-    setFormData({
-      ...formData,
-      amount: amount.toString()
-    })
+    setFormData((prev) => ({ ...prev, amount: amount.toString() }))
     setSelectedQuickAmount(amount)
     setError('')
   }
@@ -93,7 +78,6 @@ function Donate() {
     setLoading(true)
 
     try {
-      // Validate form data
       if (!formData.donorName.trim() || !formData.email.trim() || !formData.amount) {
         throw new Error('Please fill in all required fields')
       }
@@ -107,189 +91,133 @@ function Donate() {
         email: formData.email.trim(),
         amount: parseFloat(formData.amount),
         purpose: formData.purpose || 'General donation',
-        description: formData.description.trim()
+        description: formData.description.trim(),
       })
 
-      // Redirect to Khalti payment page
       if (response.payment_url) {
         window.location.href = response.payment_url
       } else {
         throw new Error('Invalid payment URL received')
       }
-
     } catch (err) {
-      console.error('Donation initiation error:', err)
       setError(err.message || 'Failed to initiate Khalti payment')
       setLoading(false)
     }
   }
 
+  const inputClass = 'mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100'
+
   return (
-    <div className="donate-page">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200">
       <Navbar />
 
-      <div className="donate-hero">
-        <div className="donate-hero-content">
-          <h1>Make a Difference Today</h1>
-          <p>Your donation helps us provide better care and support to children and women in need across Nepal.</p>
-        </div>
+      <div className="bg-gradient-to-r from-teal-800 to-emerald-700 px-6 py-14 text-center text-white">
+        <h1 className="text-4xl font-bold">Make a Difference Today</h1>
+        <p className="mx-auto mt-4 max-w-3xl text-slate-100">Your donation helps us provide better care and support to children and women in need across Nepal.</p>
       </div>
 
-      <div className="donate-container">
-        <div className="donate-main">
-          <div className="donate-card">
-            <div className="donate-header">
-              <h2>Donate Now</h2>
-              <p>Every contribution makes a meaningful impact in someone's life</p>
-            </div>
+      <div className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-12 lg:grid-cols-[2fr_1fr]">
+        <div className="rounded-2xl border border-teal-100 bg-white p-8 shadow">
+          <div className="mb-8 text-center">
+            <h2 className="text-3xl font-bold text-teal-900">Donate Now</h2>
+            <p className="mt-2 text-slate-600">Every contribution makes a meaningful impact in someone's life.</p>
+          </div>
 
-            {error && <div className="error-message">{error}</div>}
+          {error && <div className="mb-6 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
-            <form onSubmit={handleSubmit} className="donate-form">
-              {/* Personal Information */}
-              <div className="form-section">
-                <h3>Personal Information</h3>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="donorName">Full Name *</label>
-                    <input
-                      type="text"
-                      id="donorName"
-                      name="donorName"
-                      value={formData.donorName}
-                      onChange={handleChange}
-                      placeholder="Enter your full name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="email">Email Address *</label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="Enter your email"
-                      required
-                    />
-                  </div>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <section className="border-b border-slate-200 pb-6">
+              <h3 className="mb-4 text-xl font-semibold text-teal-900">Personal Information</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="donorName" className="text-sm font-medium text-slate-700">Full Name *</label>
+                  <input id="donorName" name="donorName" type="text" value={formData.donorName} onChange={handleChange} required placeholder="Enter your full name" className={inputClass} />
+                </div>
+                <div>
+                  <label htmlFor="email" className="text-sm font-medium text-slate-700">Email Address *</label>
+                  <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required placeholder="Enter your email" className={inputClass} />
                 </div>
               </div>
+            </section>
 
-              {/* Donation Amount */}
-              <div className="form-section">
-                <h3>Donation Amount</h3>
-                <div className="quick-amounts">
-                  {QUICK_AMOUNTS.map((amount) => (
-                    <button
-                      key={amount}
-                      type="button"
-                      className={`quick-amount-btn ${selectedQuickAmount === amount ? 'selected' : ''}`}
-                      onClick={() => handleQuickAmount(amount)}
-                    >
-                      NPR {amount.toLocaleString()}
-                    </button>
-                  ))}
-                </div>
-                <div className="form-group">
-                  <label htmlFor="amount">Custom Amount (NPR) *</label>
-                  <input
-                    type="number"
-                    id="amount"
-                    name="amount"
-                    value={formData.amount}
-                    onChange={handleChange}
-                    placeholder="Enter custom amount"
-                    required
-                    min="10"
-                  />
-                  <small>Minimum donation: NPR 10</small>
-                </div>
-              </div>
-
-              {/* Donation Purpose */}
-              <div className="form-section">
-                <h3>Donation Purpose</h3>
-                <div className="form-group">
-                  <label htmlFor="purpose">How would you like your donation to be used?</label>
-                  <select
-                    id="purpose"
-                    name="purpose"
-                    value={formData.purpose}
-                    onChange={handleChange}
+            <section className="border-b border-slate-200 pb-6">
+              <h3 className="mb-4 text-xl font-semibold text-teal-900">Donation Amount</h3>
+              <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {QUICK_AMOUNTS.map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => handleQuickAmount(amount)}
+                    className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                      selectedQuickAmount === amount
+                        ? 'border-teal-700 bg-teal-700 text-white'
+                        : 'border-slate-300 bg-white text-slate-700 hover:border-teal-500'
+                    }`}
                   >
+                    NPR {amount.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+              <div>
+                <label htmlFor="amount" className="text-sm font-medium text-slate-700">Custom Amount (NPR) *</label>
+                <input id="amount" name="amount" type="number" value={formData.amount} onChange={handleChange} placeholder="Enter custom amount" required min="10" className={inputClass} />
+                <p className="mt-1 text-xs text-slate-500">Minimum donation: NPR 10</p>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="mb-4 text-xl font-semibold text-teal-900">Donation Purpose</h3>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="purpose" className="text-sm font-medium text-slate-700">How would you like your donation to be used?</label>
+                  <select id="purpose" name="purpose" value={formData.purpose} onChange={handleChange} className={inputClass}>
                     {DONATION_PURPOSES.map((purpose) => (
-                      <option key={purpose.value} value={purpose.value}>
-                        {purpose.label}
-                      </option>
+                      <option key={purpose.value} value={purpose.value}>{purpose.label}</option>
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label htmlFor="description">Additional Message (Optional)</label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    placeholder="Share why you're donating or any special message..."
-                    rows="3"
-                  />
+                <div>
+                  <label htmlFor="description" className="text-sm font-medium text-slate-700">Additional Message (Optional)</label>
+                  <textarea id="description" name="description" rows="3" value={formData.description} onChange={handleChange} placeholder="Share why you're donating or any special message..." className={inputClass} />
                 </div>
               </div>
+            </section>
 
-              <button type="submit" className="donate-submit-button" disabled={loading}>
-                {loading ? (
-                  <>
-                    <span className="loading-spinner"></span>
-                    Redirecting to Khalti...
-                  </>
-                ) : (
-                  <>
-                    <span className="khalti-logo">K</span>
-                    Pay with Khalti
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-
-          {/* Impact Information */}
-          <div className="impact-card">
-            <h3>Your Impact</h3>
-            <div className="impact-items">
-              <div className="impact-item">
-                <div className="impact-icon">Food</div>
-                <div className="impact-text">
-                  <strong>NPR 500</strong>
-                  <span>Provides meals for a child for a week</span>
-                </div>
-              </div>
-              <div className="impact-item">
-                <div className="impact-icon">Education</div>
-                <div className="impact-text">
-                  <strong>NPR 1,000</strong>
-                  <span>Covers school supplies for a month</span>
-                </div>
-              </div>
-              <div className="impact-item">
-                <div className="impact-icon">Health</div>
-                <div className="impact-text">
-                  <strong>NPR 2,000</strong>
-                  <span>Supports healthcare for a family</span>
-                </div>
-              </div>
-              <div className="impact-item">
-                <div className="impact-icon">Shelter</div>
-                <div className="impact-text">
-                  <strong>NPR 5,000</strong>
-                  <span>Contributes to shelter improvements</span>
-                </div>
-              </div>
-            </div>
-          </div>
+            <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-700 to-fuchsia-700 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70">
+              {loading ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  Redirecting to Khalti...
+                </>
+              ) : (
+                <>
+                  <span className="flex h-5 w-5 items-center justify-center rounded bg-white text-xs font-bold text-violet-700">K</span>
+                  Pay with Khalti
+                </>
+              )}
+            </button>
+          </form>
         </div>
+
+        <aside className="h-fit rounded-2xl border border-teal-100 bg-white p-6 shadow lg:sticky lg:top-24">
+          <h3 className="mb-5 text-center text-2xl font-bold text-teal-900">Your Impact</h3>
+          <div className="space-y-3">
+            {[
+              { icon: 'Food', amount: 'NPR 500', text: 'Provides meals for a child for a week' },
+              { icon: 'Edu', amount: 'NPR 1,000', text: 'Covers school supplies for a month' },
+              { icon: 'Health', amount: 'NPR 2,000', text: 'Supports healthcare for a family' },
+              { icon: 'Home', amount: 'NPR 5,000', text: 'Contributes to shelter improvements' },
+            ].map((item) => (
+              <div key={item.icon} className="flex items-center gap-3 rounded-lg bg-slate-50 p-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-[11px] font-bold uppercase text-teal-800 shadow">{item.icon}</div>
+                <div>
+                  <p className="text-sm font-bold text-teal-900">{item.amount}</p>
+                  <p className="text-xs text-slate-600">{item.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
       </div>
 
       <Footer />

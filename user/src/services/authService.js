@@ -1,57 +1,124 @@
-import axios from 'axios'
+import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Register user
+// Create axios instance
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+});
+
+// Attach token automatically to protected requests
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 export const register = async (name, email, password) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/register`, {
+    const response = await axiosInstance.post("/auth/register", {
       name,
       email,
-      password
-    })
-    return response.data
+      password,
+    });
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Registration failed' }
+    throw error.response?.data || { message: "Registration failed" };
   }
-}
+};
 
-// Login user
 export const login = async (email, password) => {
   try {
-    const response = await axios.post(`${API_URL}/auth/login`, {
+    const response = await axiosInstance.post("/auth/login", {
       email,
-      password
-    })
+      password,
+    });
+
     if (response.data.token) {
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
     }
-    return response.data
+
+    return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Login failed' }
+    throw error.response?.data || { message: "Login failed" };
   }
-}
+};
 
-// Logout user
+export const forgotPassword = async (email) => {
+  try {
+    const response = await axiosInstance.post("/auth/forgot-password", {
+      email,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Failed to send reset link" };
+  }
+};
+
+export const resetPassword = async (token, password) => {
+  try {
+    const response = await axiosInstance.post(
+      `/auth/reset-password/${token}`,
+      { password }
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Password reset failed" };
+  }
+};
+
+export const googleLogin = async (credential) => {
+  try {
+    const response = await axiosInstance.post("/auth/google-login", {
+      credential,
+    });
+
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+    }
+
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Google login failed" };
+  }
+};
+
+export const changePassword = async (current, next, confirm) => {
+  try {
+    const response = await axiosInstance.put("/auth/change-password", {
+      current,
+      next,
+      confirm,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Failed to change password" };
+  }
+};
+
 export const logout = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
-}
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+};
 
-// Get current user
 export const getCurrentUser = () => {
-  const user = localStorage.getItem('user')
-  return user ? JSON.parse(user) : null
-}
+  const user = localStorage.getItem("user");
+  return user ? JSON.parse(user) : null;
+};
 
-// Check if user is authenticated
 export const isAuthenticated = () => {
-  return !!localStorage.getItem('token')
-}
+  return !!localStorage.getItem("token");
+};
 
-// Get auth token
 export const getToken = () => {
-  return localStorage.getItem('token')
-}
+  return localStorage.getItem("token");
+};
 
+export default axiosInstance;

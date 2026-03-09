@@ -1,14 +1,25 @@
+// const express = require("express");
+// const { createDonation } = require("../controllers/DonationController");
+// // Optional: Import auth middleware if donations should be protected
+// // const authMiddleware = require("../middleware/authMiddleware");
+
+// const router = express.Router();
+
+// // POST /api/donation - Create a new donation
+// // Note: Removed authMiddleware to allow anonymous donations
+
+// const authMiddleware = require("../middleware/authMiddleware");
+
+// router.post("/", authMiddleware, createDonation);
+
+// module.exports = router;
+
 const express = require("express");
-const { createDonation, getUserDonations } = require("../controllers/DonationController");
-const authMiddleware = require("../middleware/authMiddleware");
+const { createDonation } = require("../controllers/DonationController");
+const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// GET /api/donation - Get user donations (protected)
-router.get("/", authMiddleware, getUserDonations);
-
-// POST /api/donation - Create a new donation (protected)
-router.post("/", authMiddleware, createDonation);
+router.post("/", protect, createDonation);
 
 module.exports = router;
-

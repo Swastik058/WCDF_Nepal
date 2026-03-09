@@ -1,44 +1,56 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import { getCurrentUser, isAuthenticated } from '../services/authService'
+import { createContext, useContext, useState, useEffect } from "react";
+import { 
+  getCurrentUser, 
+  isAuthenticated as checkAuth, 
+  logout as serviceLogout 
+} from "../services/authService";
 
-const AuthContext = createContext()
+const AuthContext = createContext();
 
 export const useAuth = () => {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
-}
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  // Load user on first render
   useEffect(() => {
-    if (isAuthenticated()) {
-      const currentUser = getCurrentUser()
-      setUser(currentUser)
+    if (checkAuth()) {
+      const currentUser = getCurrentUser();
+      setUser(currentUser);
     }
-    setLoading(false)
-  }, [])
+    setLoading(false);
+  }, []);
 
+  // Login
   const login = (userData) => {
-    setUser(userData)
-  }
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+  };
 
+  // Logout
   const logout = () => {
-    setUser(null)
-  }
+    serviceLogout(); // removes token + user from localStorage
+    setUser(null);
+  };
 
   const value = {
     user,
     loading,
     isAuthenticated: !!user,
     login,
-    logout
-  }
+    logout,
+  };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
+};

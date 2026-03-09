@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Loader from "../components/Loader";
-import "./Dashboard.css";
 
 function Dashboard() {
   const { user } = useAuth();
@@ -24,79 +23,52 @@ function Dashboard() {
     pendingDonations: 0,
   });
 
-  /* =========================
-     AUTH GUARD
-  ========================= */
   useEffect(() => {
     if (!user) {
       navigate("/login");
     }
   }, [user, navigate]);
 
-  /* =========================
-     FETCH DONATIONS ON MOUNT
-  ========================= */
   useEffect(() => {
     if (user) {
       fetchDonations();
     }
   }, [user]);
 
-  /* =========================
-     PAYMENT SUCCESS HANDLER
-  ========================= */
   useEffect(() => {
     const paymentStatus = searchParams.get("payment");
     const errorReason = searchParams.get("reason");
     const errorType = searchParams.get("error");
 
     if (paymentStatus === "success") {
-      console.log('Payment success detected - fetching fresh data from database');
       setShowSuccessMessage(true);
-
-      // Fetch fresh donation data from database with delay to ensure backend processing is complete
       setTimeout(() => {
         fetchDonations();
       }, 1000);
 
-      // Auto-hide message
       const timer = setTimeout(() => {
         setShowSuccessMessage(false);
       }, 8000);
 
-      // Remove query param safely
+      window.history.replaceState({}, "", "/dashboard");
+      return () => clearTimeout(timer);
+    }
+
+    if (paymentStatus === "failed") {
+      let errorMessage = "Payment failed. Please try again.";
+      if (errorReason) errorMessage = `Payment failed: ${errorReason}`;
+      else if (errorType) errorMessage = `Payment verification failed: ${errorType.replace(/_/g, " ")}`;
+
+      setError(errorMessage);
+      fetchDonations();
       window.history.replaceState({}, "", "/dashboard");
 
-      return () => clearTimeout(timer);
-      
-    } else if (paymentStatus === "failed") {
-      console.log('Payment failure detected:', { errorReason, errorType });
-      
-      let errorMessage = 'Payment failed. Please try again.';
-      if (errorReason) {
-        errorMessage = `Payment failed: ${errorReason}`;
-      } else if (errorType) {
-        errorMessage = `Payment verification failed: ${errorType.replace(/_/g, ' ')}`;
-      }
-      
-      setError(errorMessage);
-      
-      // Still fetch donations to show current state
-      fetchDonations();
-      
-      // Remove query param safely
-      window.history.replaceState({}, "", "/dashboard");
-      
-      // Clear error after 10 seconds
       setTimeout(() => {
-        setError('');
+        setError("");
       }, 10000);
     }
   }, [searchParams]);
 
-  /* =========================
-     FETCH DONATIONS
-  ========================= */
   const fetchDonations = async () => {
     try {
       setLoading(true);
@@ -105,7 +77,6 @@ function Dashboard() {
 
       setDonations(list);
 
-      // Calculate stats
       const completed = list.filter((d) => d.status === "completed");
       const pending = list.filter((d) => d.status === "pending");
 
@@ -116,7 +87,6 @@ function Dashboard() {
         pendingDonations: pending.length,
       });
     } catch (err) {
-      console.error(err);
       setError("Failed to load donations");
     } finally {
       setLoading(false);
@@ -127,9 +97,6 @@ function Dashboard() {
     fetchDonations();
   }, []);
 
-  /* =========================
-     HELPERS
-  ========================= */
   const formatDate = (date) =>
     new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
@@ -141,115 +108,92 @@ function Dashboard() {
 
   const getStatusBadge = (status) => {
     const map = {
-      completed: "status-completed",
-      pending: "status-pending",
-      failed: "status-failed",
+      completed: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      pending: 'border-amber-200 bg-amber-50 text-amber-700',
+      failed: 'border-rose-200 bg-rose-50 text-rose-700',
     };
-    return <span className={`status-badge ${map[status]}`}>{status}</span>;
+
+    return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold capitalize ${map[status] || 'border-slate-200 bg-slate-50 text-slate-600'}`}>{status}</span>;
   };
 
-  /* =========================
-     LOADING STATE
-  ========================= */
   if (loading) {
     return (
-      <div className="dashboard-page">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200">
         <Navbar />
-        <div className="dashboard-loading">
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
           <Loader />
-          <p>Loading dashboard...</p>
+          <p className="text-slate-600">Loading dashboard...</p>
         </div>
         <Footer />
       </div>
     );
   }
 
-  /* =========================
-     UI
-  ========================= */
   return (
-    <div className="dashboard-page">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200">
       <Navbar />
 
-      <div className="dashboard-container">
-        {/* SUCCESS MESSAGE */}
+      <div className="mx-auto w-full max-w-7xl px-6 py-10">
         {showSuccessMessage && (
-          <div className="success-notification">
-            <div className="success-content">
-              <span className="success-icon-small">Success</span>
-              <span>Payment completed successfully! Your donation has been processed and saved. Check your donation history below for details.</span>
+          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="rounded bg-emerald-600 px-2 py-1 text-xs font-bold uppercase text-white">Success</span>
+              <span className="text-sm font-medium">Payment completed successfully! Your donation has been processed and saved. Check your donation history below for details.</span>
             </div>
           </div>
         )}
 
-        {/* HEADER */}
-        <div className="dashboard-header">
+        <div className="mb-6 flex flex-col gap-4 rounded-2xl bg-white p-6 shadow sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1>Welcome, {user?.name}</h1>
-            <p>Your donation history & impact</p>
+            <h1 className="text-3xl font-bold text-teal-900">Welcome, {user?.name}</h1>
+            <p className="mt-1 text-slate-600">Your donation history and impact.</p>
           </div>
-          <button className="new-donation-btn" onClick={() => navigate("/donate")}>
+          <button onClick={() => navigate('/donate')} className="rounded-lg bg-gradient-to-r from-teal-700 to-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110">
             + New Donation
           </button>
         </div>
 
-        {/* STATS */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <h3>{stats.totalDonations}</h3>
-            <p>Total Donations</p>
-          </div>
-          <div className="stat-card">
-            <h3>NPR {stats.totalAmount.toLocaleString()}</h3>
-            <p>Total Amount</p>
-          </div>
-          <div className="stat-card">
-            <h3>{stats.completedDonations}</h3>
-            <p>Completed</p>
-          </div>
-          <div className="stat-card">
-            <h3>{stats.pendingDonations}</h3>
-            <p>Pending</p>
-          </div>
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl bg-white p-5 shadow"><p className="text-3xl font-bold text-teal-900">{stats.totalDonations}</p><p className="mt-1 text-sm text-slate-600">Total Donations</p></div>
+          <div className="rounded-2xl bg-white p-5 shadow"><p className="text-3xl font-bold text-teal-900">NPR {stats.totalAmount.toLocaleString()}</p><p className="mt-1 text-sm text-slate-600">Total Amount</p></div>
+          <div className="rounded-2xl bg-white p-5 shadow"><p className="text-3xl font-bold text-teal-900">{stats.completedDonations}</p><p className="mt-1 text-sm text-slate-600">Completed</p></div>
+          <div className="rounded-2xl bg-white p-5 shadow"><p className="text-3xl font-bold text-teal-900">{stats.pendingDonations}</p><p className="mt-1 text-sm text-slate-600">Pending</p></div>
         </div>
 
-        {/* DONATIONS */}
-        <div className="donations-section">
-          <h2>Recent Donations</h2>
+        <div className="rounded-2xl bg-white p-6 shadow">
+          <h2 className="mb-4 text-2xl font-bold text-teal-900">Recent Donations</h2>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
 
           {donations.length === 0 ? (
-            <div className="empty-state">
-              <p>No donations yet.</p>
-              <button onClick={() => navigate("/donate")}>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center">
+              <p className="text-slate-600">No donations yet.</p>
+              <button onClick={() => navigate('/donate')} className="mt-4 rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800">
                 Make Your First Donation
               </button>
             </div>
           ) : (
-            donations.map((donation) => (
-              <div key={donation._id} className="donation-card">
-                <div className="donation-header">
-                  <strong>{donation.purpose}</strong>
-                  <span>NPR {donation.amount.toLocaleString()}</span>
-                </div>
+            <div className="space-y-4">
+              {donations.map((donation) => (
+                <div key={donation._id} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <strong className="text-lg text-teal-900">{donation.purpose}</strong>
+                    <span className="text-lg font-bold text-teal-900">NPR {donation.amount.toLocaleString()}</span>
+                  </div>
 
-                <div className="donation-meta">
-                  <span>{formatDate(donation.createdAt)}</span>
-                  <span>{donation.paymentMethod}</span>
-                </div>
+                  <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
+                    <span>{formatDate(donation.createdAt)}</span>
+                    <span>{donation.paymentMethod}</span>
+                  </div>
 
-                {donation.transactionId && (
-                  <p className="txn-id">
-                    TXN: {donation.transactionId}
-                  </p>
-                )}
+                  {donation.transactionId && (
+                    <p className="mb-3 text-xs text-slate-500">TXN: {donation.transactionId}</p>
+                  )}
 
-                <div className="donation-footer">
-                  {getStatusBadge(donation.status)}
+                  <div>{getStatusBadge(donation.status)}</div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       </div>

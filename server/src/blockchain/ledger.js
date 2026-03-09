@@ -19,6 +19,7 @@ async function recordDonationOnChain(donationId, amount) {
   await tx.wait();
 
   console.log("Donation successfully recorded on blockchain");
+  return tx.hash;
 }
 
 module.exports = { recordDonationOnChain };
