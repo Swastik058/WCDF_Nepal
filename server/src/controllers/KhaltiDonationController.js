@@ -1,6 +1,7 @@
 const axios = require("axios");
 const Donation = require("../models/Donation");
 const { recordDonationOnChain } = require("../blockchain/ledger"); 
+const BlockchainTransaction = require("../models/admin/BlockchainTransaction");
 
 
 /**
@@ -118,10 +119,25 @@ exports.verifyKhaltiPayment = async (req, res) => {
       await donation.save();
 
       //  BLOCKCHAIN RECORD (ONLY AFTER CONFIRMED PAYMENT)
-     await recordDonationOnChain(
-  donation.createdAt.getTime(),   // always numeric, always unique
-  Math.round(donation.amount * 100)
-);
+      let blockchainTxHash = null;
+      try {
+        blockchainTxHash = await recordDonationOnChain(
+          donation.createdAt.getTime(),
+          Math.round(donation.amount * 100)
+        );
+      } catch (chainError) {
+        console.error("Blockchain recording failed:", chainError.message);
+      }
+
+      if (blockchainTxHash) {
+        await BlockchainTransaction.create({
+          donationId: donation._id,
+          donationReference: donation._id.toString(),
+          transactionHash: blockchainTxHash,
+          network: process.env.BLOCKCHAIN_NETWORK || "hardhat",
+          status: "confirmed",
+        });
+      }
 
 
       return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard?payment=success`);
