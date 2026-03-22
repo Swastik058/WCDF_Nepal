@@ -103,6 +103,18 @@ export const changePassword = async (current, next, confirm) => {
   }
 };
 
+export const fetchCurrentUser = async () => {
+  try {
+    const response = await axiosInstance.get("/auth/me");
+    if (response.data?.user) {
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+    }
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Failed to fetch current user" };
+  }
+};
+
 export const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
@@ -111,6 +123,15 @@ export const logout = () => {
 export const getCurrentUser = () => {
   const user = localStorage.getItem("user");
   return user ? JSON.parse(user) : null;
+};
+
+export const setCurrentUser = (user) => {
+  if (!user) {
+    localStorage.removeItem("user");
+    return;
+  }
+
+  localStorage.setItem("user", JSON.stringify(user));
 };
 
 export const isAuthenticated = () => {

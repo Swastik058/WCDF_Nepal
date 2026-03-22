@@ -36,6 +36,15 @@ function Navbar() {
           {user ? (
             <>
               <span className="hidden text-sm text-slate-500 sm:inline">{user.name}</span>
+              {user?.volunteerStatus === 'approved' ? (
+                <Link to="/volunteer/dashboard" className="rounded-md border border-emerald-300 px-3 py-1.5 text-sm font-medium text-emerald-700 transition hover:border-emerald-500 hover:text-emerald-800">
+                  Volunteer
+                </Link>
+              ) : (
+                <Link to="/volunteer/apply" className="rounded-md border border-emerald-300 px-3 py-1.5 text-sm font-medium text-emerald-700 transition hover:border-emerald-500 hover:text-emerald-800">
+                  Become a Volunteer
+                </Link>
+              )}
               <Link to="/dashboard" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:border-emerald-400 hover:text-emerald-600">
                 Dashboard
               </Link>

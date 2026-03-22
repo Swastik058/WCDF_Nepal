@@ -3,8 +3,10 @@ const Child = require("../../models/admin/Child");
 const Event = require("../../models/admin/Event");
 const Expense = require("../../models/admin/Expense");
 const VolunteerApplication = require("../../models/admin/VolunteerApplication");
+const VolunteerTracking = require("../../models/admin/VolunteerTracking");
 const Donation = require("../../models/Donation");
 const BlockchainTransaction = require("../../models/admin/BlockchainTransaction");
+const User = require("../../models/UserModel");
 
 const badRequest = (res, message) => res.status(400).json({ message });
 
@@ -32,6 +34,43 @@ const formatValidationError = (error) => {
   return errors;
 };
 
+const normalizeTrackedHours = (status, hoursCompleted) => {
+  const parsedHours = Number(hoursCompleted);
+  const safeHours = Number.isNaN(parsedHours) || parsedHours < 0 ? 0 : parsedHours;
+
+  if (["assigned", "missed"].includes(status)) {
+    return 0;
+  }
+
+  return safeHours;
+};
+
+const syncVolunteerTotalHours = async (volunteerId, previousHours, nextHours) => {
+  const volunteer = await User.findById(volunteerId);
+  if (!volunteer) {
+    throw new Error("Volunteer not found");
+  }
+
+  // Safe hours update:
+  // We only apply the difference between the old tracking hours and the new tracking hours.
+  // Example: previous=5, next=3 means difference=-2, so total hours goes down by 2.
+  // This prevents double-adding hours when admins edit an existing tracking record.
+  const hourDifference = nextHours - previousHours;
+  volunteer.totalVolunteerHours = Math.max(0, (volunteer.totalVolunteerHours || 0) + hourDifference);
+  await volunteer.save();
+
+  const application = await VolunteerApplication.findOne({ userId: volunteerId });
+  if (application) {
+    application.volunteerHours = volunteer.totalVolunteerHours;
+    await application.save();
+  }
+
+  return volunteer.totalVolunteerHours;
+};
+
+const buildTrackingMap = (trackingItems) =>
+  new Map(trackingItems.map((item) => [String(item.volunteerId), item]));
+
 exports.getDashboardSummary = async (req, res) => {
   try {
     const [
@@ -41,6 +80,7 @@ exports.getDashboardSummary = async (req, res) => {
       expenseSummary,
       totalVolunteers,
       pendingVolunteerApprovals,
+      rejectedVolunteerCount,
       recentDonations,
       pendingVolunteerList,
       recentEvents,
@@ -56,6 +96,7 @@ exports.getDashboardSummary = async (req, res) => {
       Expense.aggregate([{ $group: { _id: null, total: { $sum: "$amount" } } }]),
       VolunteerApplication.countDocuments({ status: "approved" }),
       VolunteerApplication.countDocuments({ status: "pending" }),
+      VolunteerApplication.countDocuments({ status: "rejected" }),
       Donation.find({ status: "completed" })
         .sort({ createdAt: -1 })
         .limit(5)
@@ -63,7 +104,7 @@ exports.getDashboardSummary = async (req, res) => {
       VolunteerApplication.find({ status: "pending" })
         .sort({ createdAt: -1 })
         .limit(5)
-        .select("fullName email phone createdAt"),
+        .select("fullName email phone address createdAt"),
       Event.find().sort({ createdAt: -1 }).limit(5).select("title status eventDate createdAt"),
       Expense.find().sort({ createdAt: -1 }).limit(5).select("title amount category createdAt"),
       VolunteerApplication.find({ status: { $in: ["approved", "rejected"] } })
@@ -112,6 +153,11 @@ exports.getDashboardSummary = async (req, res) => {
         totalChildren,
         totalEvents,
         totalExpenses,
+      },
+      volunteerSummary: {
+        approved: totalVolunteers,
+        pending: pendingVolunteerApprovals,
+        rejected: rejectedVolunteerCount,
       },
       recentDonations,
       pendingVolunteerApprovals,
@@ -186,7 +232,9 @@ exports.deleteChild = async (req, res) => {
 
 exports.getEvents = async (req, res) => {
   try {
-    const events = await Event.find().sort({ eventDate: -1 });
+    const events = await Event.find()
+      .populate("assignedVolunteers", "name email totalVolunteerHours")
+      .sort({ eventDate: -1 });
     return res.status(200).json(events);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch events" });
@@ -242,6 +290,287 @@ exports.deleteEvent = async (req, res) => {
     return res.status(200).json({ message: "Event deleted successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete event" });
+  }
+};
+
+exports.getApprovedVolunteers = async (req, res) => {
+  try {
+    const volunteers = await VolunteerApplication.find({ status: "approved" })
+      .populate("userId", "name email totalVolunteerHours volunteerStatus isVolunteer")
+      .sort({ fullName: 1 });
+
+    const items = volunteers
+      .filter((item) => item.userId?.isVolunteer && item.userId?.volunteerStatus === "approved")
+      .map((item) => ({
+        _id: item.userId._id,
+        fullName: item.fullName || item.userId.name,
+        email: item.email || item.userId.email,
+        phone: item.phone || "",
+        totalVolunteerHours: item.userId.totalVolunteerHours || 0,
+      }));
+
+    return res.status(200).json(items);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch approved volunteers" });
+  }
+};
+
+exports.getAssignedVolunteersForActivity = async (req, res) => {
+  try {
+    const { activityId } = req.params;
+    const event = await Event.findById(activityId).populate(
+      "assignedVolunteers",
+      "name email totalVolunteerHours volunteerStatus isVolunteer"
+    );
+
+    if (!event) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    const trackingItems = await VolunteerTracking.find({ activityId });
+    const trackingMap = buildTrackingMap(trackingItems);
+
+    const assignedVolunteers = event.assignedVolunteers.map((volunteer) => {
+      const tracking = trackingMap.get(String(volunteer._id));
+
+      return {
+        _id: volunteer._id,
+        name: volunteer.name,
+        email: volunteer.email,
+        totalVolunteerHours: volunteer.totalVolunteerHours || 0,
+        tracking: tracking || {
+          participationStatus: "assigned",
+          hoursCompleted: 0,
+          remarks: "",
+        },
+      };
+    });
+
+    return res.status(200).json({
+      activity: {
+        _id: event._id,
+        title: event.title,
+        status: event.status,
+        eventDate: event.eventDate,
+      },
+      assignedVolunteers,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch assigned volunteers" });
+  }
+};
+
+exports.assignVolunteerToActivity = async (req, res) => {
+  try {
+    const { activityId } = req.params;
+    const { volunteerId } = req.body;
+
+    if (!volunteerId) {
+      return badRequest(res, "volunteerId is required");
+    }
+
+    const event = await Event.findById(activityId);
+    if (!event) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    const volunteer = await User.findById(volunteerId);
+    if (!volunteer || !volunteer.isVolunteer || volunteer.volunteerStatus !== "approved") {
+      return res.status(400).json({ message: "Only approved volunteers can be assigned" });
+    }
+
+    const alreadyAssigned = event.assignedVolunteers.some(
+      (item) => String(item) === String(volunteerId)
+    );
+
+    if (alreadyAssigned) {
+      return res.status(400).json({ message: "Volunteer is already assigned to this activity" });
+    }
+
+    event.assignedVolunteers.push(volunteerId);
+    await event.save();
+
+    await VolunteerTracking.findOneAndUpdate(
+      { volunteerId, activityId },
+      {
+        volunteerId,
+        activityId,
+        participationStatus: "assigned",
+        hoursCompleted: 0,
+        remarks: "",
+        updatedBy: req.user._id,
+        updatedAt: new Date(),
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    return res.status(200).json({ message: "Volunteer assigned successfully" });
+  } catch (error) {
+    const errors = formatValidationError(error);
+    if (errors) return res.status(400).json({ message: "Validation error", errors });
+    return res.status(500).json({ message: "Failed to assign volunteer to activity" });
+  }
+};
+
+exports.removeVolunteerFromActivity = async (req, res) => {
+  try {
+    const { activityId } = req.params;
+    const { volunteerId } = req.body;
+
+    if (!volunteerId) {
+      return badRequest(res, "volunteerId is required");
+    }
+
+    const event = await Event.findById(activityId);
+    if (!event) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    const wasAssigned = event.assignedVolunteers.some(
+      (item) => String(item) === String(volunteerId)
+    );
+
+    if (!wasAssigned) {
+      return res.status(404).json({ message: "Volunteer is not assigned to this activity" });
+    }
+
+    event.assignedVolunteers = event.assignedVolunteers.filter(
+      (item) => String(item) !== String(volunteerId)
+    );
+    await event.save();
+
+    const existingTracking = await VolunteerTracking.findOne({ volunteerId, activityId });
+    if (existingTracking) {
+      await syncVolunteerTotalHours(volunteerId, existingTracking.hoursCompleted || 0, 0);
+      await VolunteerTracking.findByIdAndDelete(existingTracking._id);
+    }
+
+    return res.status(200).json({ message: "Volunteer removed from activity successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to remove volunteer from activity" });
+  }
+};
+
+exports.updateVolunteerTrackingForActivity = async (req, res) => {
+  try {
+    const { activityId, volunteerId } = req.params;
+    const { participationStatus = "assigned", hoursCompleted = 0, remarks = "" } = req.body;
+
+    const event = await Event.findById(activityId);
+    if (!event) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    const volunteer = await User.findById(volunteerId);
+    if (!volunteer || !volunteer.isVolunteer || volunteer.volunteerStatus !== "approved") {
+      return res.status(404).json({ message: "Approved volunteer not found" });
+    }
+
+    const isAssigned = event.assignedVolunteers.some(
+      (item) => String(item) === String(volunteerId)
+    );
+
+    if (!isAssigned) {
+      return res.status(400).json({ message: "Volunteer must be assigned before tracking can be updated" });
+    }
+
+    const existingTracking = await VolunteerTracking.findOne({ volunteerId, activityId });
+    const previousHours = existingTracking?.hoursCompleted || 0;
+    const normalizedHours = normalizeTrackedHours(participationStatus, hoursCompleted);
+
+    const tracking = await VolunteerTracking.findOneAndUpdate(
+      { volunteerId, activityId },
+      {
+        volunteerId,
+        activityId,
+        participationStatus,
+        hoursCompleted: normalizedHours,
+        remarks: remarks.trim(),
+        updatedBy: req.user._id,
+        updatedAt: new Date(),
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    const totalVolunteerHours = await syncVolunteerTotalHours(
+      volunteerId,
+      previousHours,
+      normalizedHours
+    );
+
+    return res.status(200).json({
+      message: "Volunteer tracking updated successfully",
+      tracking,
+      totalVolunteerHours,
+    });
+  } catch (error) {
+    const errors = formatValidationError(error);
+    if (errors) return res.status(400).json({ message: "Validation error", errors });
+    return res.status(500).json({ message: "Failed to update volunteer tracking" });
+  }
+};
+
+exports.getVolunteerTrackingForActivity = async (req, res) => {
+  try {
+    const { activityId } = req.params;
+    const event = await Event.findById(activityId).populate(
+      "assignedVolunteers",
+      "name email totalVolunteerHours"
+    );
+
+    if (!event) {
+      return res.status(404).json({ message: "Activity not found" });
+    }
+
+    const trackingItems = await VolunteerTracking.find({ activityId })
+      .populate("volunteerId", "name email totalVolunteerHours")
+      .populate("updatedBy", "name email")
+      .sort({ updatedAt: -1 });
+
+    const trackingMap = new Map(
+      trackingItems.map((item) => [String(item.volunteerId?._id || item.volunteerId), item])
+    );
+
+    const items = event.assignedVolunteers.map((volunteer) => {
+      const tracking = trackingMap.get(String(volunteer._id));
+
+      return {
+        volunteer: {
+          _id: volunteer._id,
+          name: volunteer.name,
+          email: volunteer.email,
+          totalVolunteerHours: volunteer.totalVolunteerHours || 0,
+        },
+        tracking: tracking || {
+          participationStatus: "assigned",
+          hoursCompleted: 0,
+          remarks: "",
+          updatedAt: null,
+          updatedBy: null,
+        },
+      };
+    });
+
+    return res.status(200).json({
+      activity: {
+        _id: event._id,
+        title: event.title,
+        status: event.status,
+        eventDate: event.eventDate,
+      },
+      items,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch volunteer tracking for activity" });
   }
 };
 
@@ -323,10 +652,14 @@ exports.getVolunteerApplications = async (req, res) => {
       query.$or = [
         { fullName: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
       ];
     }
 
-    const applications = await VolunteerApplication.find(query).sort({ createdAt: -1 });
+    const applications = await VolunteerApplication.find(query)
+      .populate("userId", "name email volunteerStatus isVolunteer")
+      .populate("approvedBy", "name email")
+      .sort({ createdAt: -1 });
     return res.status(200).json(applications);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch volunteer applications" });
@@ -336,7 +669,7 @@ exports.getVolunteerApplications = async (req, res) => {
 exports.updateVolunteerStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, reviewNote = "" } = req.body;
+    const { status, adminRemarks = "", rejectionReason = "" } = req.body;
 
     if (!["approved", "rejected"].includes(status)) {
       return badRequest(res, "status must be either approved or rejected");
@@ -347,12 +680,33 @@ exports.updateVolunteerStatus = async (req, res) => {
       return res.status(404).json({ message: "Volunteer application not found" });
     }
 
+    const applicant = await User.findById(application.userId);
+    if (!applicant) {
+      return res.status(404).json({ message: "Applicant user not found" });
+    }
+
     application.status = status;
-    application.reviewedBy = req.user._id;
+    application.approvedBy = status === "approved" ? req.user._id : null;
+    application.approvedAt = status === "approved" ? new Date() : null;
     application.reviewedAt = new Date();
-    application.reviewNote = reviewNote;
+    application.adminRemarks = adminRemarks;
+    application.rejectionReason = status === "rejected" ? rejectionReason : "";
+    application.recentActivity.unshift({
+      title: status === "approved" ? "Application approved" : "Application rejected",
+      description:
+        status === "approved"
+          ? "Admin approved this volunteer application."
+          : rejectionReason || "Admin rejected this volunteer application.",
+      activityDate: new Date(),
+    });
+    application.recentActivity = application.recentActivity.slice(0, 10);
 
     await application.save();
+
+    applicant.volunteerStatus = status;
+    applicant.isVolunteer = status === "approved";
+    applicant.volunteerApprovedAt = status === "approved" ? application.approvedAt : null;
+    await applicant.save();
 
     return res.status(200).json(application);
   } catch (error) {

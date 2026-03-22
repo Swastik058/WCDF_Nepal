@@ -32,4 +32,20 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-module.exports = { protect, adminOnly };
+const requireApprovedVolunteer = (req, res, next) => {
+  if (req.user.volunteerStatus === "pending") {
+    return res.status(403).json({ message: "Volunteer application is still pending" });
+  }
+
+  if (req.user.volunteerStatus === "rejected") {
+    return res.status(403).json({ message: "Volunteer application was rejected" });
+  }
+
+  if (!req.user.isVolunteer || req.user.volunteerStatus !== "approved") {
+    return res.status(403).json({ message: "Approved volunteer access required" });
+  }
+
+  next();
+};
+
+module.exports = { protect, adminOnly, requireApprovedVolunteer };

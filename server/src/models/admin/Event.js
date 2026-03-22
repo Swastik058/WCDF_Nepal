@@ -42,6 +42,15 @@ const eventSchema = new mongoose.Schema(
       enum: ["planned", "ongoing", "completed", "cancelled"],
       default: "planned",
     },
+    assignedVolunteers: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

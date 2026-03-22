@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { 
   getCurrentUser, 
+  fetchCurrentUser,
   isAuthenticated as checkAuth, 
-  logout as serviceLogout 
+  logout as serviceLogout,
+  setCurrentUser,
 } from "../services/authService";
 
 const AuthContext = createContext();
@@ -21,17 +23,40 @@ export const AuthProvider = ({ children }) => {
 
   // Load user on first render
   useEffect(() => {
-    if (checkAuth()) {
-      const currentUser = getCurrentUser();
-      setUser(currentUser);
-    }
-    setLoading(false);
+    const loadUser = async () => {
+      if (!checkAuth()) {
+        setLoading(false);
+        return;
+      }
+
+      const localUser = getCurrentUser();
+      if (localUser) {
+        setUser(localUser);
+      }
+
+      try {
+        const response = await fetchCurrentUser();
+        setUser(response.user);
+      } catch (error) {
+        serviceLogout();
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUser();
   }, []);
 
   // Login
   const login = (userData) => {
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    setCurrentUser(userData);
+  };
+
+  const updateUser = (userData) => {
+    setUser(userData);
+    setCurrentUser(userData);
   };
 
   // Logout
@@ -45,6 +70,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated: !!user,
     login,
+    updateUser,
     logout,
   };
 

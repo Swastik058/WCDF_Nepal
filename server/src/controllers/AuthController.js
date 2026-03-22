@@ -214,6 +214,14 @@ const changePassword = async (req, res) => {
   }
 };
 
+const getCurrentUserProfile = async (req, res) => {
+  try {
+    res.json({ user: sanitizeUser(req.user) });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch user profile" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -222,4 +230,5 @@ module.exports = {
   resetPassword,
   googleLogin,
   changePassword,
+  getCurrentUserProfile,
 };
