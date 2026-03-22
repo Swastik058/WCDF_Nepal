@@ -93,6 +93,12 @@ export const adminApi = {
   createEvent: (payload) => post('/admin/events', payload),
   updateEvent: (id, payload) => put(`/admin/events/${id}`, payload),
   deleteEvent: (id) => del(`/admin/events/${id}`),
+  getApprovedVolunteers: () => get('/admin/volunteers/approved'),
+  getAssignedVolunteersForActivity: (activityId) => get(`/admin/activities/${activityId}/assigned-volunteers`),
+  assignVolunteerToActivity: (activityId, payload) => put(`/admin/activities/${activityId}/assign-volunteer`, payload),
+  removeVolunteerFromActivity: (activityId, payload) => put(`/admin/activities/${activityId}/remove-volunteer`, payload),
+  updateVolunteerTrackingForActivity: (activityId, volunteerId, payload) => put(`/admin/activities/${activityId}/track-volunteer/${volunteerId}`, payload),
+  getVolunteerTrackingForActivity: (activityId) => get(`/admin/activities/${activityId}/tracking`),
 
   getExpenses: () => get('/admin/expenses'),
   createExpense: (payload) => post('/admin/expenses', payload),

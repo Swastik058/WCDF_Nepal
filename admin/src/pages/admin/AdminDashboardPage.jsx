@@ -55,6 +55,12 @@ function AdminDashboardPage() {
             <StatCard label="Total Expenses" value={formatCurrency(data.cards.totalExpenses)} />
           </div>
 
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <StatCard label="Approved Volunteers" value={data.volunteerSummary?.approved || 0} />
+            <StatCard label="Pending Volunteers" value={data.volunteerSummary?.pending || 0} />
+            <StatCard label="Rejected Volunteers" value={data.volunteerSummary?.rejected || 0} />
+          </div>
+
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <h2 className="text-lg font-semibold text-slate-900">Recent Donations</h2>

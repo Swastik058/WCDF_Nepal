@@ -7,6 +7,7 @@ const {
   resetPassword,
   googleLogin,
   changePassword,
+  getCurrentUserProfile,
 } = require("../controllers/AuthController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -20,5 +21,6 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.post("/google-login", googleLogin);
 router.put("/change-password", protect, changePassword);
+router.get("/me", protect, getCurrentUserProfile);
 
 module.exports = router;

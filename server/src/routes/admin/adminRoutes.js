@@ -13,6 +13,12 @@ const {
   createExpense,
   updateExpense,
   deleteExpense,
+  getApprovedVolunteers,
+  getAssignedVolunteersForActivity,
+  assignVolunteerToActivity,
+  removeVolunteerFromActivity,
+  updateVolunteerTrackingForActivity,
+  getVolunteerTrackingForActivity,
   getVolunteerApplications,
   updateVolunteerStatus,
   getDonations,
@@ -36,6 +42,12 @@ router.get("/events", getEvents);
 router.post("/events", createEvent);
 router.put("/events/:id", updateEvent);
 router.delete("/events/:id", deleteEvent);
+router.get("/volunteers/approved", getApprovedVolunteers);
+router.get("/activities/:activityId/assigned-volunteers", getAssignedVolunteersForActivity);
+router.put("/activities/:activityId/assign-volunteer", assignVolunteerToActivity);
+router.put("/activities/:activityId/remove-volunteer", removeVolunteerFromActivity);
+router.put("/activities/:activityId/track-volunteer/:volunteerId", updateVolunteerTrackingForActivity);
+router.get("/activities/:activityId/tracking", getVolunteerTrackingForActivity);
 
 router.get("/expenses", getExpenses);
 router.post("/expenses", createExpense);

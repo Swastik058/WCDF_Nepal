@@ -44,12 +44,15 @@ const donationRoutes = require("./routes/DonationRoutes");
 const khaltiRoutes = require("./routes/khaltiRoutes");
 const adminRoutes = require("./routes/admin/adminRoutes");
 const eventRoutes = require("./routes/EventRoutes");
+const volunteerRoutes = require("./routes/VolunteerRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/donation", donationRoutes);
 app.use("/api/khalti", khaltiRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/volunteers", volunteerRoutes);
+app.use("/api/volunteer", volunteerRoutes);
 
 // ================== DEFAULT ROUTE ==================
 app.get("/", (req, res) => {

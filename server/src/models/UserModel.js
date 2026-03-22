@@ -24,7 +24,28 @@ const userSchema = new mongoose.Schema(
       default: "user", // user, admin, donor, staff
     },
 
-    // 🔐 For password reset
+    volunteerStatus: {
+      type: String,
+      enum: ["not_applied", "pending", "approved", "rejected"],
+      default: "not_applied",
+    },
+
+    isVolunteer: {
+      type: Boolean,
+      default: false,
+    },
+
+    volunteerApprovedAt: {
+      type: Date,
+      default: null,
+    },
+
+    totalVolunteerHours: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
     resetPasswordToken: {
       type: String,
     },
@@ -33,7 +54,6 @@ const userSchema = new mongoose.Schema(
       type: Date,
     },
 
-    // 🔐 For Google login
     googleId: {
       type: String,
     },
@@ -41,9 +61,6 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-//
-// ================= HASH PASSWORD BEFORE SAVE =================
-//
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
@@ -51,11 +68,8 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-//
-// ================= MATCH PASSWORD METHOD =================
-//
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  return bcrypt.compare(enteredPassword, this.password);
 };
 
 module.exports = mongoose.model("User", userSchema);
