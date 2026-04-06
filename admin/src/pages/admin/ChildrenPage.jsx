@@ -9,11 +9,15 @@ const initialForm = {
   fullName: '',
   dateOfBirth: '',
   gender: 'other',
+  profileImage: '',
+  shortBio: '',
+  joinedYear: '',
   guardianName: '',
   contactNumber: '',
   address: '',
   healthNotes: '',
   educationLevel: '',
+  isPublished: false,
   isActive: true,
 };
 
@@ -50,6 +54,20 @@ function ChildrenPage() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        profileImage: reader.result || '',
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const resetForm = () => {
@@ -135,6 +153,47 @@ function ChildrenPage() {
             </select>
           </label>
 
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium text-slate-700">Upload Profile Image</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none file:cursor-pointer file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm"
+            />
+          </label>
+
+          {form.profileImage ? (
+            <div className="mt-2">
+              <span className="mb-1 block text-sm font-medium text-slate-700">Image Preview</span>
+              <img
+                src={form.profileImage}
+                alt="Child preview"
+                className="h-28 w-full max-w-xs rounded-md object-cover border border-slate-200"
+              />
+            </div>
+          ) : null}
+
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium text-slate-700">Short Bio</span>
+            <textarea
+              name="shortBio"
+              value={form.shortBio}
+              onChange={handleChange}
+              rows={3}
+              placeholder="A short description for the child"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+            />
+          </label>
+          <FormInput
+            label="Joined Year"
+            name="joinedYear"
+            value={form.joinedYear}
+            onChange={handleChange}
+            type="number"
+            placeholder="2024"
+          />
+
           <FormInput label="Guardian Name" name="guardianName" value={form.guardianName} onChange={handleChange} />
           <FormInput label="Contact Number" name="contactNumber" value={form.contactNumber} onChange={handleChange} />
           <FormInput label="Address" name="address" value={form.address} onChange={handleChange} />
@@ -154,6 +213,10 @@ function ChildrenPage() {
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input type="checkbox" name="isActive" checked={form.isActive} onChange={handleChange} />
             Active
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="isPublished" checked={form.isPublished} onChange={handleChange} />
+            Publish publicly
           </label>
 
           <div className="flex gap-2">

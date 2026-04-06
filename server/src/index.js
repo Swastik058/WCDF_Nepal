@@ -32,7 +32,7 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
 // ================== DATABASE ==================
@@ -43,6 +43,7 @@ const authRoutes = require("./routes/AuthRoutes");
 const donationRoutes = require("./routes/DonationRoutes");
 const khaltiRoutes = require("./routes/khaltiRoutes");
 const adminRoutes = require("./routes/admin/adminRoutes");
+const childrenRoutes = require("./routes/childrenRoutes");
 const eventRoutes = require("./routes/EventRoutes");
 const volunteerRoutes = require("./routes/VolunteerRoutes");
 
@@ -50,6 +51,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/donation", donationRoutes);
 app.use("/api/khalti", khaltiRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/children", childrenRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/volunteers", volunteerRoutes);
 app.use("/api/volunteer", volunteerRoutes);

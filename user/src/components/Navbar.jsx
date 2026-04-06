@@ -25,6 +25,7 @@ function Navbar() {
 
         <div className="order-3 flex w-full flex-wrap items-center justify-start gap-4 lg:order-2 lg:w-auto lg:justify-center">
           <Link to="/" className={navLinkClass}>Home</Link>
+          <Link to="/children" className={navLinkClass}>Children</Link>
           <a href="#about" className={navLinkClass}>About Us</a>
           <a href="#gallery" className={navLinkClass}>Gallery</a>
           <a href="#contact" className={navLinkClass}>Contact</a>

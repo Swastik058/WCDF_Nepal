@@ -1,15 +1,15 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
-import MainLayout from '../Layouts/Mainlayout';
-import Notfound from '../pages/Notfound';
-import ProtectedRoute from '../components/ProtectedRoute';
-import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
-import ChildrenPage from '../pages/admin/ChildrenPage';
-import EventsPage from '../pages/admin/EventsPage';
-import ExpensesPage from '../pages/admin/ExpensesPage';
-import VolunteersPage from '../pages/admin/VolunteersPage';
-import DonationsPage from '../pages/admin/DonationsPage';
-import BlockchainRecordsPage from '../pages/admin/BlockchainRecordsPage';
-import ReportsPage from '../pages/admin/ReportsPage';
+import MainLayout from '../../Layouts/Mainlayout';
+import Notfound from '../Notfound';
+import ProtectedRoute from '../../components/ProtectedRoute';
+import AdminDashboardPage from '../admin/AdminDashboardPage';
+import ChildrenPage from '../admin/ChildrenPage';
+import EventsPage from '../admin/EventsPage';
+import ExpensesPage from '../admin/ExpensesPage';
+import VolunteersPage from '../admin/VolunteersPage';
+import DonationsPage from '../admin/DonationsPage';
+import BlockchainRecordsPage from '../admin/BlockchainRecordsPage';
+import ReportsPage from '../admin/ReportsPage';
 
 const protectedLayout = (
   <ProtectedRoute>
