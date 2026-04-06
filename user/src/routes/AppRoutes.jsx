@@ -7,6 +7,8 @@ import ResetPassword from '../pages/ResetPassword'
 import Donate from '../pages/Donate'
 import Dashboard from '../pages/Dashboard'
 import Events from '../pages/Events'
+import Children from '../pages/Children'
+import ChildProfile from '../pages/ChildProfile'
 import KhaltiVerify from '../pages/KhaltiVerify'
 import ProtectedRoute from '../components/ProtectedRoute'
 import VolunteerRoute from '../components/VolunteerRoute'
@@ -26,6 +28,8 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/events" element={<Events />} />
+      <Route path="/children" element={<Children />} />
+      <Route path="/children/:identifier" element={<ChildProfile />} />
       <Route
         path="/donate"
         element={

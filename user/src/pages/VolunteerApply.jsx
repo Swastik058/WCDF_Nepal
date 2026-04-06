@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -122,7 +123,7 @@ function VolunteerApply() {
               </div>
               <div>
                 <p className="font-semibold text-slate-900">Application flow</p>
-                <p className="mt-1">Submit form -> admin review -> approve or reject -> volunteer access</p>
+                <p className="mt-1">Submit form &gt; admin review &gt; approve or reject &gt; volunteer access</p>
               </div>
             </div>
 

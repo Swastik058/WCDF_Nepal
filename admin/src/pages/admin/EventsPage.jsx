@@ -34,6 +34,7 @@ function EventsPage() {
   const [error, setError] = useState('');
   const [detailsError, setDetailsError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [conflictMessage, setConflictMessage] = useState('');
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId]);
   const selectedEvent = useMemo(
@@ -195,6 +196,7 @@ function EventsPage() {
     setAssigning(true);
     setDetailsError('');
     setSuccessMessage('');
+    setConflictMessage('');
 
     try {
       await adminApi.assignVolunteerToActivity(selectedEventId, { volunteerId: selectedVolunteerId });
@@ -203,6 +205,18 @@ function EventsPage() {
       await loadEvents();
       await loadEventVolunteerDetails(selectedEventId);
     } catch (err) {
+      if (err.status === 409) {
+        const conflictTitle = err.details?.conflict?.title || 'another event';
+        const conflictDate = err.details?.conflict?.eventDate
+          ? formatDate(err.details.conflict.eventDate)
+          : 'the same date';
+
+        setConflictMessage(
+          `Assignment conflict: this volunteer is already assigned to ${conflictTitle} on ${conflictDate}.`,
+        );
+        setDetailsError('');
+        return;
+      }
       setDetailsError(err.message || 'Failed to assign volunteer');
     } finally {
       setAssigning(false);
@@ -364,6 +378,7 @@ function EventsPage() {
 
           {detailsError ? <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{detailsError}</div> : null}
           {successMessage ? <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</div> : null}
+          {conflictMessage ? <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{conflictMessage}</div> : null}
 
           {selectedEvent ? (
             <>

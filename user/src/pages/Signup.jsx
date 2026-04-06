@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { register, login } from '../services/authService'
+import { GoogleLogin } from '@react-oauth/google'
+import { register, login, googleLogin } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
 
 function Signup() {
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const googleSignInConfigured = Boolean(googleClientId)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -13,6 +16,7 @@ function Signup() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const navigate = useNavigate()
   const { login: loginContext } = useAuth()
 
@@ -56,6 +60,37 @@ function Signup() {
     }
   }
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    if (!credentialResponse.credential) {
+      setError('Google login did not return a credential.')
+      return
+    }
+
+    setError('')
+    setGoogleLoading(true)
+
+    try {
+      const response = await googleLogin(credentialResponse.credential)
+      loginContext(response.user)
+
+      const intendedPath = localStorage.getItem('intendedPath')
+      if (intendedPath) {
+        localStorage.removeItem('intendedPath')
+        navigate(intendedPath)
+      } else {
+        navigate('/home')
+      }
+    } catch (err) {
+      setError(err.message || 'Google login failed. Please try again.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
+  const handleGoogleError = () => {
+    setError('Google sign-in was cancelled or failed to start.')
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
@@ -87,10 +122,46 @@ function Signup() {
               <input id="confirmPassword" name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} required minLength={6} placeholder="Confirm your password" className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
             </div>
 
-            <button type="submit" disabled={loading} className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70">
+            <button type="submit" disabled={loading || googleLoading} className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70">
               {loading ? 'Creating account...' : 'Sign Up'}
             </button>
           </form>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-400">Or continue with</span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <div className="mt-6 flex flex-col items-center gap-3">
+            {googleSignInConfigured ? (
+              <div className={googleLoading ? 'pointer-events-none opacity-70' : ''}>
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  text="signup_with"
+                  shape="rectangular"
+                  theme="outline"
+                  size="large"
+                  width="320"
+                />
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled
+                  className="flex w-full max-w-[320px] items-center justify-center gap-3 rounded-md border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-400"
+                >
+                  <span className="text-base font-semibold">G</span>
+                  <span>Sign up with Google</span>
+                </button>
+                <p className="text-center text-xs text-amber-600">
+                  Google sign-in is not configured yet. Set <code>VITE_GOOGLE_CLIENT_ID</code> in the user app env file.
+                </p>
+              </>
+            )}
+          </div>
 
           <p className="mt-5 text-center text-sm text-slate-600">
             Already have an account?{' '}

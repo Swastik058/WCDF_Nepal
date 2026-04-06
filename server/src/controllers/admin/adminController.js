@@ -16,6 +16,19 @@ const parseDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const getDayRange = (value) => {
+  const date = parseDate(value);
+  if (!date) return null;
+
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+};
+
 const toObjectId = (value) => {
   if (!mongoose.Types.ObjectId.isValid(value)) return null;
   return new mongoose.Types.ObjectId(value);
@@ -385,6 +398,31 @@ exports.assignVolunteerToActivity = async (req, res) => {
 
     if (alreadyAssigned) {
       return res.status(400).json({ message: "Volunteer is already assigned to this activity" });
+    }
+
+    const dayRange = getDayRange(event.eventDate);
+    if (dayRange) {
+      const conflictingEvent = await Event.findOne({
+        _id: { $ne: activityId },
+        assignedVolunteers: volunteerId,
+        status: { $ne: "cancelled" },
+        eventDate: {
+          $gte: dayRange.start,
+          $lte: dayRange.end,
+        },
+      }).select("title eventDate status");
+
+      if (conflictingEvent) {
+        return res.status(409).json({
+          message: `This volunteer is already assigned to "${conflictingEvent.title}" on the same date.`,
+          conflict: {
+            _id: conflictingEvent._id,
+            title: conflictingEvent.title,
+            eventDate: conflictingEvent.eventDate,
+            status: conflictingEvent.status,
+          },
+        });
+      }
     }
 
     event.assignedVolunteers.push(volunteerId);
