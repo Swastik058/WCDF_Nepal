@@ -4,6 +4,7 @@ import { GoogleLogin } from '@react-oauth/google'
 import { register, login, googleLogin } from '../services/authService'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
 
 function Signup() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
@@ -29,6 +30,21 @@ function Signup() {
     e.preventDefault()
     setError('')
 
+    // Normalize email to lowercase
+    const normalizedEmail = formData.email.toLowerCase()
+
+    // Validate Gmail email format
+    const emailRegex = /^[^\s@]+@gmail\.com$/
+    if (!emailRegex.test(normalizedEmail)) {
+      setError('Please enter a valid Gmail address')
+      return
+    }
+
+    if (!formData.name.trim()) {
+      setError('Please enter your full name.')
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       return
@@ -42,8 +58,8 @@ function Signup() {
     setLoading(true)
 
     try {
-      await register(formData.name, formData.email, formData.password)
-      const response = await login(formData.email, formData.password)
+      await register(formData.name, normalizedEmail, formData.password)
+      const response = await login(normalizedEmail, formData.password)
       loginContext(response.user)
 
       const intendedPath = localStorage.getItem('intendedPath')
@@ -92,10 +108,19 @@ function Signup() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <Navbar />
-      <div className="mx-auto flex w-full max-w-7xl justify-center px-6 py-12">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+
+      <section className="relative flex min-h-[300px] items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#0f3b35,#14532d_55%,#854d0e)] px-6 py-20">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.18),transparent_28%)]" />
+        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+          <h1 className="max-w-4xl text-4xl font-bold tracking-tight text-white sm:text-5xl">Create Your Account</h1>
+          <p className="max-w-3xl text-lg text-white/90">Join our community and start making a difference today.</p>
+        </div>
+      </section>
+
+      <div className="flex min-h-[calc(100vh-540px)] items-center justify-center px-6 py-12 lg:px-8">
+        <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-bold text-slate-900">Sign Up</h2>
           <p className="mt-1 text-sm text-slate-600">Create a new account to get started.</p>
 
@@ -165,10 +190,12 @@ function Signup() {
 
           <p className="mt-5 text-center text-sm text-slate-600">
             Already have an account?{' '}
-            <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-500">Login</Link>
+            <Link to="/login" className="font-semibold text-emerald-600 hover:text-emerald-500">Login</Link>
           </p>
         </div>
       </div>
+
+      <Footer />
     </div>
   )
 }
