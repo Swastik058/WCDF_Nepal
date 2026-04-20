@@ -1,17 +1,17 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { redirectToUserLogin } from '../services/authService';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && (!isAuthenticated || user?.role !== 'admin')) {
-      redirectToUserLogin(location.pathname || '/home');
+      navigate('/login', { state: { from: location.pathname } });
     }
-  }, [loading, isAuthenticated, user, location.pathname]);
+  }, [loading, isAuthenticated, user, location.pathname, navigate]);
 
   if (loading) {
     return (

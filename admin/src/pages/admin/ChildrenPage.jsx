@@ -6,11 +6,17 @@ import { adminApi } from '../../services/adminApi';
 import { formatDate } from '../../utils/adminFormat';
 
 const initialForm = {
-  fullName: '',
+  name: '',
   dateOfBirth: '',
   gender: 'other',
-  profileImage: '',
-  shortBio: '',
+  image: '',
+  description: '',
+  yearlyCost: '',
+  education: '',
+  food: '',
+  healthcare: '',
+  shelter: '',
+  others: '',
   joinedYear: '',
   guardianName: '',
   contactNumber: '',
@@ -20,6 +26,13 @@ const initialForm = {
   isPublished: false,
   isActive: true,
 };
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat('en-NP', {
+    style: 'currency',
+    currency: 'NPR',
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 
 function ChildrenPage() {
   const [children, setChildren] = useState([]);
@@ -64,7 +77,7 @@ function ChildrenPage() {
     reader.onload = () => {
       setForm((prev) => ({
         ...prev,
-        profileImage: reader.result || '',
+        image: reader.result || '',
       }));
     };
     reader.readAsDataURL(file);
@@ -76,10 +89,38 @@ function ChildrenPage() {
   };
 
   const validate = () => {
-    if (!form.fullName.trim()) return 'Full name is required';
+    if (!form.name.trim()) return 'Child name is required';
     if (!form.dateOfBirth) return 'Date of birth is required';
+    if (Number(form.yearlyCost || 0) < 0) return 'Yearly cost cannot be negative';
     return '';
   };
+
+  const buildPayload = () => ({
+    name: form.name.trim(),
+    fullName: form.name.trim(),
+    dateOfBirth: form.dateOfBirth,
+    gender: form.gender,
+    image: form.image,
+    profileImage: form.image,
+    description: form.description.trim(),
+    shortBio: form.description.trim(),
+    yearlyCost: Number(form.yearlyCost || 0),
+    costBreakdown: {
+      education: Number(form.education || 0),
+      food: Number(form.food || 0),
+      healthcare: Number(form.healthcare || 0),
+      shelter: Number(form.shelter || 0),
+      others: Number(form.others || 0),
+    },
+    joinedYear: form.joinedYear ? Number(form.joinedYear) : null,
+    guardianName: form.guardianName.trim(),
+    contactNumber: form.contactNumber.trim(),
+    address: form.address.trim(),
+    healthNotes: form.healthNotes.trim(),
+    educationLevel: form.educationLevel.trim(),
+    isPublished: form.isPublished,
+    isActive: form.isActive,
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -92,10 +133,11 @@ function ChildrenPage() {
     setSubmitting(true);
     setError('');
     try {
+      const payload = buildPayload();
       if (isEditing) {
-        await adminApi.updateChild(editingId, form);
+        await adminApi.updateChild(editingId, payload);
       } else {
-        await adminApi.createChild(form);
+        await adminApi.createChild(payload);
       }
       resetForm();
       await loadChildren();
@@ -110,8 +152,25 @@ function ChildrenPage() {
     setEditingId(item._id);
     setForm({
       ...initialForm,
-      ...item,
+      name: item.name || item.fullName || '',
       dateOfBirth: item.dateOfBirth ? item.dateOfBirth.slice(0, 10) : '',
+      gender: item.gender || 'other',
+      image: item.image || item.profileImage || '',
+      description: item.description || item.shortBio || '',
+      yearlyCost: item.yearlyCost || '',
+      education: item.costBreakdown?.education || '',
+      food: item.costBreakdown?.food || '',
+      healthcare: item.costBreakdown?.healthcare || '',
+      shelter: item.costBreakdown?.shelter || '',
+      others: item.costBreakdown?.others || '',
+      joinedYear: item.joinedYear || '',
+      guardianName: item.guardianName || '',
+      contactNumber: item.contactNumber || '',
+      address: item.address || '',
+      healthNotes: item.healthNotes || '',
+      educationLevel: item.educationLevel || '',
+      isPublished: Boolean(item.isPublished),
+      isActive: Boolean(item.isActive),
     });
     setError('');
   };
@@ -130,13 +189,13 @@ function ChildrenPage() {
 
   return (
     <div>
-      <PageHeader title="Children Profile" description="Create, update and manage child records" />
+      <PageHeader title="Children Profile" description="Create, update and manage child sponsorship profiles" />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:col-span-1">
           <h2 className="text-lg font-semibold text-slate-900">{isEditing ? 'Edit Child' : 'Add Child'}</h2>
 
-          <FormInput label="Full Name" name="fullName" value={form.fullName} onChange={handleChange} required />
+          <FormInput label="Child Name" name="name" value={form.name} onChange={handleChange} required />
           <FormInput label="Date Of Birth" name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleChange} required />
 
           <label className="block text-sm">
@@ -163,36 +222,47 @@ function ChildrenPage() {
             />
           </label>
 
-          {form.profileImage ? (
+          {form.image ? (
             <div className="mt-2">
               <span className="mb-1 block text-sm font-medium text-slate-700">Image Preview</span>
               <img
-                src={form.profileImage}
+                src={form.image}
                 alt="Child preview"
-                className="h-28 w-full max-w-xs rounded-md object-cover border border-slate-200"
+                className="h-28 w-full max-w-xs rounded-md border border-slate-200 object-cover"
               />
             </div>
           ) : null}
 
           <label className="block text-sm">
-            <span className="mb-1 block font-medium text-slate-700">Short Bio</span>
+            <span className="mb-1 block font-medium text-slate-700">Description</span>
             <textarea
-              name="shortBio"
-              value={form.shortBio}
+              name="description"
+              value={form.description}
               onChange={handleChange}
-              rows={3}
-              placeholder="A short description for the child"
+              rows={4}
+              placeholder="Public-safe child profile description"
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
             />
           </label>
+
           <FormInput
-            label="Joined Year"
-            name="joinedYear"
-            value={form.joinedYear}
+            label="Yearly Sponsorship Cost"
+            name="yearlyCost"
+            value={form.yearlyCost}
             onChange={handleChange}
             type="number"
-            placeholder="2024"
+            min="0"
+            placeholder="50000"
           />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormInput label="Education" name="education" value={form.education} onChange={handleChange} type="number" min="0" />
+            <FormInput label="Food" name="food" value={form.food} onChange={handleChange} type="number" min="0" />
+            <FormInput label="Healthcare" name="healthcare" value={form.healthcare} onChange={handleChange} type="number" min="0" />
+            <FormInput label="Shelter" name="shelter" value={form.shelter} onChange={handleChange} type="number" min="0" />
+            <FormInput label="Others" name="others" value={form.others} onChange={handleChange} type="number" min="0" />
+            <FormInput label="Joined Year" name="joinedYear" value={form.joinedYear} onChange={handleChange} type="number" placeholder="2024" />
+          </div>
 
           <FormInput label="Guardian Name" name="guardianName" value={form.guardianName} onChange={handleChange} />
           <FormInput label="Contact Number" name="contactNumber" value={form.contactNumber} onChange={handleChange} />
@@ -248,19 +318,25 @@ function ChildrenPage() {
                   <thead>
                     <tr className="text-left text-slate-500">
                       <th className="py-2">Name</th>
-                      <th className="py-2">DOB</th>
-                      <th className="py-2">Guardian</th>
-                      <th className="py-2">Status</th>
+                      <th className="py-2">Yearly Cost</th>
+                      <th className="py-2">Sponsored</th>
+                      <th className="py-2">Sponsor</th>
+                      <th className="py-2">Updated</th>
                       <th className="py-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {children.map((item) => (
                       <tr key={item._id} className="border-t border-slate-100">
-                        <td className="py-2">{item.fullName}</td>
-                        <td className="py-2">{formatDate(item.dateOfBirth)}</td>
-                        <td className="py-2">{item.guardianName || '-'}</td>
-                        <td className="py-2">{item.isActive ? 'Active' : 'Inactive'}</td>
+                        <td className="py-2 font-medium text-slate-900">{item.name || item.fullName}</td>
+                        <td className="py-2">{formatCurrency(item.yearlyCost)}</td>
+                        <td className="py-2">
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.isSponsored ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {item.isSponsored ? 'Sponsored' : 'Available'}
+                          </span>
+                        </td>
+                        <td className="py-2">{item.sponsoredBy?.name || item.sponsoredBy?.email || '-'}</td>
+                        <td className="py-2">{formatDate(item.updatedAt)}</td>
                         <td className="py-2">
                           <div className="flex gap-2">
                             <button type="button" onClick={() => handleEdit(item)} className="text-indigo-600 hover:underline">

@@ -1,10 +1,13 @@
 const mongoose = require("mongoose");
 const Child = require("../../models/admin/Child");
 const Event = require("../../models/admin/Event");
+const Program = require("../../models/admin/Program");
 const Expense = require("../../models/admin/Expense");
+const Notification = require("../../models/admin/Notification");
 const VolunteerApplication = require("../../models/admin/VolunteerApplication");
 const VolunteerTracking = require("../../models/admin/VolunteerTracking");
 const Donation = require("../../models/Donation");
+const Sponsorship = require("../../models/Sponsorship");
 const BlockchainTransaction = require("../../models/admin/BlockchainTransaction");
 const User = require("../../models/UserModel");
 
@@ -84,6 +87,52 @@ const syncVolunteerTotalHours = async (volunteerId, previousHours, nextHours) =>
 const buildTrackingMap = (trackingItems) =>
   new Map(trackingItems.map((item) => [String(item.volunteerId), item]));
 
+const normalizeCurrencyValue = (value) => {
+  const parsedValue = Number(value);
+  if (Number.isNaN(parsedValue) || parsedValue < 0) {
+    return 0;
+  }
+
+  return parsedValue;
+};
+
+const buildCostBreakdown = (input = {}) => ({
+  education: normalizeCurrencyValue(input.education),
+  food: normalizeCurrencyValue(input.food),
+  healthcare: normalizeCurrencyValue(input.healthcare),
+  shelter: normalizeCurrencyValue(input.shelter),
+  others: normalizeCurrencyValue(input.others),
+});
+
+const normalizeChildPayload = (payload = {}) => {
+  const name = String(payload.name || payload.fullName || "").trim();
+  const description = String(payload.description || payload.shortBio || "").trim();
+  const image = String(payload.image || payload.profileImage || "").trim();
+  const yearlyCost = normalizeCurrencyValue(payload.yearlyCost);
+  const costBreakdown = buildCostBreakdown(payload.costBreakdown || payload);
+  const normalizedPayload = {
+    ...payload,
+    name,
+    fullName: name,
+    description,
+    shortBio: description,
+    image,
+    profileImage: image,
+    yearlyCost,
+    costBreakdown,
+    age: payload.age === "" || payload.age === undefined || payload.age === null
+      ? undefined
+      : normalizeCurrencyValue(payload.age),
+  };
+
+  if (payload.isSponsored !== undefined) {
+    normalizedPayload.isSponsored = Boolean(payload.isSponsored);
+    normalizedPayload.sponsoredBy = payload.isSponsored ? payload.sponsoredBy || null : null;
+  }
+
+  return normalizedPayload;
+};
+
 exports.getDashboardSummary = async (req, res) => {
   try {
     const [
@@ -99,6 +148,8 @@ exports.getDashboardSummary = async (req, res) => {
       recentEvents,
       recentExpenses,
       recentVolunteerUpdates,
+      sponsoredChildren,
+      recentSponsorshipNotifications,
     ] = await Promise.all([
       Donation.aggregate([
         { $match: { status: "completed" } },
@@ -124,6 +175,13 @@ exports.getDashboardSummary = async (req, res) => {
         .sort({ reviewedAt: -1 })
         .limit(5)
         .select("fullName status reviewedAt"),
+      Child.countDocuments({ isSponsored: true }),
+      Notification.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate("childId", "name fullName")
+        .populate("userId", "name email")
+        .select("message childId userId createdAt"),
     ]);
 
     const totalDonations = donationSummary[0]?.total || 0;
@@ -166,6 +224,7 @@ exports.getDashboardSummary = async (req, res) => {
         totalChildren,
         totalEvents,
         totalExpenses,
+        sponsoredChildren,
       },
       volunteerSummary: {
         approved: totalVolunteers,
@@ -175,6 +234,7 @@ exports.getDashboardSummary = async (req, res) => {
       recentDonations,
       pendingVolunteerApprovals,
       pendingVolunteerList,
+      recentSponsorshipNotifications,
       recentActivity,
     });
   } catch (error) {
@@ -182,9 +242,103 @@ exports.getDashboardSummary = async (req, res) => {
   }
 };
 
+exports.getAdminStats = async (req, res) => {
+  try {
+    const [
+      totalDonationsResult,
+      totalDonors,
+      totalPrograms,
+      totalVolunteers,
+      sponsoredChildren,
+      donationsOverTime,
+      donationsByProgram,
+      recentSponsorshipNotifications,
+    ] = await Promise.all([
+      Donation.aggregate([
+        { $match: { status: "completed" } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Donation.distinct("email", { status: "completed" }).then((emails) => emails.length),
+      Program.countDocuments({ isActive: true }),
+      User.countDocuments({ isVolunteer: true, volunteerStatus: "approved" }),
+      Child.countDocuments({ isSponsored: true }),
+      Donation.aggregate([
+        { $match: { status: "completed" } },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" },
+            },
+            amount: { $sum: "$amount" },
+          },
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } },
+      ]),
+      Donation.aggregate([
+        { $match: { status: "completed" } },
+        {
+          $group: {
+            _id: {
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ["$purpose", null] },
+                    { $eq: [{ $trim: { input: { $ifNull: ["$purpose", ""] } } }, ""] },
+                  ],
+                },
+                "General Donation",
+                "$purpose",
+              ],
+            },
+            amount: { $sum: "$amount" },
+          },
+        },
+        { $sort: { amount: -1 } },
+      ]),
+      Notification.find()
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .populate("childId", "name fullName")
+        .populate("userId", "name email")
+        .select("message childId userId createdAt"),
+    ]);
+
+    const totalDonations = totalDonationsResult[0]?.total || 0;
+    const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
+
+    return res.status(200).json({
+      totalDonations,
+      totalDonors,
+      totalPrograms,
+      totalVolunteers,
+      sponsoredChildren,
+      donationsOverTime: donationsOverTime.map((item) => ({
+        date: monthFormatter.format(new Date(item._id.year, item._id.month - 1, 1)),
+        amount: item.amount,
+      })),
+      donationsByProgram: donationsByProgram.map((item) => ({
+        program: item._id,
+        amount: item.amount,
+      })),
+      recentSponsorshipNotifications: recentSponsorshipNotifications.map((item) => ({
+        _id: item._id,
+        message: item.message,
+        childName: item.childId?.name || item.childId?.fullName || "Child",
+        sponsoredBy: item.userId?.name || item.userId?.email || "User",
+        createdAt: item.createdAt,
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load admin stats" });
+  }
+};
+
 exports.getChildren = async (req, res) => {
   try {
-    const children = await Child.find().sort({ createdAt: -1 });
+    const children = await Child.find()
+      .sort({ createdAt: -1 })
+      .populate("sponsoredBy", "name email");
     return res.status(200).json(children);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch children" });
@@ -193,13 +347,14 @@ exports.getChildren = async (req, res) => {
 
 exports.createChild = async (req, res) => {
   try {
-    const { fullName, dateOfBirth } = req.body;
+    const payload = normalizeChildPayload(req.body);
+    const { fullName, dateOfBirth } = payload;
 
     if (!fullName || !dateOfBirth) {
       return badRequest(res, "fullName and dateOfBirth are required");
     }
 
-    const child = await Child.create(req.body);
+    const child = await Child.create(payload);
     return res.status(201).json(child);
   } catch (error) {
     const errors = formatValidationError(error);
@@ -211,14 +366,15 @@ exports.createChild = async (req, res) => {
 exports.updateChild = async (req, res) => {
   try {
     const { id } = req.params;
-    const child = await Child.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const child = await Child.findById(id);
 
     if (!child) {
       return res.status(404).json({ message: "Child not found" });
     }
+
+    const payload = normalizeChildPayload(req.body);
+    Object.assign(child, payload);
+    await child.save();
 
     return res.status(200).json(child);
   } catch (error) {
@@ -240,6 +396,30 @@ exports.deleteChild = async (req, res) => {
     return res.status(200).json({ message: "Child deleted successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete child" });
+  }
+};
+
+exports.getSponsorships = async (req, res) => {
+  try {
+    const [sponsorships, notifications] = await Promise.all([
+      Sponsorship.find()
+        .sort({ sponsoredAt: -1 })
+        .populate("childId", "name fullName yearlyCost")
+        .populate("userId", "name email")
+        .populate("donationId", "amount purpose status createdAt"),
+      Notification.find()
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate("childId", "name fullName")
+        .populate("userId", "name email"),
+    ]);
+
+    return res.status(200).json({
+      sponsorships,
+      notifications,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch sponsorships" });
   }
 };
 
@@ -305,6 +485,101 @@ exports.deleteEvent = async (req, res) => {
     return res.status(500).json({ message: "Failed to delete event" });
   }
 };
+
+exports.getPrograms = async (req, res) => {
+  try {
+    const programs = await Program.find().sort({ displayOrder: 1, createdAt: 1 });
+    return res.status(200).json(programs);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch programs" });
+  }
+};
+
+exports.createProgram = async (req, res) => {
+  try {
+    const {
+      title,
+      shortDescription,
+      fullDescription = "",
+      image = "",
+      isActive = true,
+      displayOrder = 0,
+    } = req.body;
+
+    if (!title || !shortDescription) {
+      return badRequest(res, "title and shortDescription are required");
+    }
+
+    const program = await Program.create({
+      title: title.trim(),
+      shortDescription: shortDescription.trim(),
+      fullDescription: fullDescription.trim(),
+      image: image.trim(),
+      isActive: Boolean(isActive),
+      displayOrder: Number(displayOrder) || 0,
+    });
+
+    return res.status(201).json(program);
+  } catch (error) {
+    const errors = formatValidationError(error);
+    if (errors) return res.status(400).json({ message: "Validation error", errors });
+    return res.status(500).json({ message: "Failed to create program" });
+  }
+};
+
+exports.updateProgram = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      shortDescription,
+      fullDescription = "",
+      image = "",
+      isActive = true,
+      displayOrder = 0,
+    } = req.body;
+
+    if (!title || !shortDescription) {
+      return badRequest(res, "title and shortDescription are required");
+    }
+
+    const program = await Program.findById(id);
+    if (!program) {
+      return res.status(404).json({ message: "Program not found" });
+    }
+
+    program.title = title.trim();
+    program.shortDescription = shortDescription.trim();
+    program.fullDescription = fullDescription.trim();
+    program.image = image.trim();
+    program.isActive = Boolean(isActive);
+    program.displayOrder = Number(displayOrder) || 0;
+
+    await program.save();
+
+    return res.status(200).json(program);
+  } catch (error) {
+    const errors = formatValidationError(error);
+    if (errors) return res.status(400).json({ message: "Validation error", errors });
+    return res.status(500).json({ message: "Failed to update program" });
+  }
+};
+
+exports.deleteProgram = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const program = await Program.findByIdAndDelete(id);
+
+    if (!program) {
+      return res.status(404).json({ message: "Program not found" });
+    }
+
+    return res.status(200).json({ message: "Program deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete program" });
+  }
+};
+
 
 exports.getApprovedVolunteers = async (req, res) => {
   try {
