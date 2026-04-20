@@ -6,6 +6,8 @@ const links = [
   { label: 'Dashboard', to: '/dashboard' },
   { label: 'Children', to: '/dashboard/children' },
   { label: 'Events', to: '/dashboard/events' },
+  { label: 'Programs', to: '/dashboard/programs' },
+  { label: 'Gallery', to: '/dashboard/gallery' },
   { label: 'Expenses', to: '/dashboard/expenses' },
   { label: 'Volunteers', to: '/dashboard/volunteers' },
   { label: 'Donations', to: '/dashboard/donations' },
