@@ -19,13 +19,28 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const exists = await User.findOne({ email });
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    // Only allow Gmail accounts
+    if (!email.toLowerCase().endsWith("@gmail.com")) {
+      return res.status(400).json({ message: "Only Gmail accounts are allowed" });
+    }
+
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase();
+
+    // Check for existing user with normalized email
+    const exists = await User.findOne({ email: normalizedEmail });
     if (exists)
       return res.status(400).json({ message: "User already exists" });
 
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password,
       role: "user",
     });
@@ -45,7 +60,8 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user || !(await user.matchPassword(password)))
       return res.status(400).json({ message: "Invalid credentials" });
@@ -65,7 +81,8 @@ const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user || !(await user.matchPassword(password)))
       return res.status(400).json({ message: "Invalid credentials" });
@@ -88,7 +105,8 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user)
       return res.status(400).json({ message: "No account found" });
 
@@ -166,12 +184,13 @@ const googleLogin = async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email, name } = payload;
 
-    let user = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase();
+    let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       user = await User.create({
         name,
-        email,
+        email: normalizedEmail,
         password: crypto.randomBytes(16).toString("hex"),
         googleId,
         role: "user",
