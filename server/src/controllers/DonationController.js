@@ -1,40 +1,15 @@
 const Donation = require("../models/Donation");
+const Child = require("../models/admin/Child");
 
-// GET /donation - Get user donations
-exports.getUserDonations = async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    
-    if (!userId) {
-      return res.status(401).json({ 
-        message: "Authentication required to view donations" 
-      });
-    }
-
-    // Find donations for the authenticated user
-    const donations = await Donation.find({ userId })
-      .sort({ createdAt: -1 }) // Most recent first
-      .select('-__v'); // Exclude version field
-
-    res.status(200).json({
-      message: "Donations retrieved successfully",
-      donations,
-      count: donations.length
-    });
-
-  } catch (err) {
-    console.error("Get donations error:", err);
-    res.status(500).json({ 
-      message: "Failed to retrieve donations",
-      error: process.env.NODE_ENV === 'development' ? err.message : "Internal server error"
-    });
-  }
+const findSponsorshipChild = async (childId) => {
+  if (!childId) return null;
+  return Child.findById(childId).select("name fullName yearlyCost isSponsored");
 };
 
 // POST /donation - Create a new donation
 exports.createDonation = async (req, res) => {
   try {
-    const { donorName, email, amount, paymentMethod, purpose, description, transactionId } = req.body;
+    const { donorName, email, amount, paymentMethod, purpose, description, transactionId, childId } = req.body;
 
     // Validation checks
     if (!donorName || donorName.trim() === "") {
@@ -88,6 +63,21 @@ exports.createDonation = async (req, res) => {
 
     //  Link to user if authenticated
     const userId = req.user.id;  // req.user always exists because route is protected
+    const child = await findSponsorshipChild(childId);
+
+    if (childId && !child) {
+      return res.status(404).json({ message: "Selected child could not be found" });
+    }
+
+    if (child?.isSponsored) {
+      return res.status(400).json({ message: "This child has already been sponsored" });
+    }
+
+    if (child && child.yearlyCost > 0 && parsedAmount !== child.yearlyCost) {
+      return res.status(400).json({
+        message: `Sponsorship amount must match the yearly cost of NPR ${child.yearlyCost}`,
+      });
+    }
 
 
     // Create donation record
@@ -96,10 +86,14 @@ exports.createDonation = async (req, res) => {
       email: email.trim().toLowerCase(),
       amount: parsedAmount,
       paymentMethod: paymentMethod.trim(),
-      purpose: purpose ? purpose.trim() : "General donation",
+      purpose: child
+        ? `Child Sponsorship: ${child.name || child.fullName}`
+        : purpose ? purpose.trim() : "General donation",
       description: description ? description.trim() : undefined,
       transactionId: transactionId ? transactionId.trim() : null,
       userId: userId,
+      childId: child?._id || null,
+      isChildSponsorship: Boolean(child),
       status: "pending"
     });
 
@@ -113,6 +107,8 @@ exports.createDonation = async (req, res) => {
         amount: donation.amount,
         paymentMethod: donation.paymentMethod,
         purpose: donation.purpose,
+        childId: donation.childId,
+        isChildSponsorship: donation.isChildSponsorship,
         status: donation.status,
         createdAt: donation.createdAt
       }
@@ -135,6 +131,29 @@ exports.createDonation = async (req, res) => {
     console.error("Donation creation error:", err);
     res.status(500).json({ 
       message: "Failed to record donation",
+      error: process.env.NODE_ENV === 'development' ? err.message : "Internal server error"
+    });
+  }
+};
+
+// GET /donation - Get user donations
+exports.getUserDonations = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const donations = await Donation.find({ userId })
+      .sort({ createdAt: -1 })
+      .select('donorName email amount paymentMethod purpose status transactionId createdAt childId isChildSponsorship');
+
+    res.status(200).json({
+      message: "Donations retrieved successfully",
+      donations
+    });
+
+  } catch (err) {
+    console.error("Error fetching donations:", err);
+    res.status(500).json({ 
+      message: "Failed to fetch donations",
       error: process.env.NODE_ENV === 'development' ? err.message : "Internal server error"
     });
   }
