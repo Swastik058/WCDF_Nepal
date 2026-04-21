@@ -44,6 +44,15 @@ const donationSchema = new mongoose.Schema(
       ref: "User",
       default: null
     },
+    childId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Child",
+      default: null
+    },
+    isChildSponsorship: {
+      type: Boolean,
+      default: false
+    },
     transactionId: {
       type: String,
       trim: true,

@@ -15,11 +15,12 @@
 // module.exports = router;
 
 const express = require("express");
-const { createDonation } = require("../controllers/DonationController");
+const { createDonation, getUserDonations } = require("../controllers/DonationController");
 const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 router.post("/", protect, createDonation);
+router.get("/", protect, getUserDonations);
 
 module.exports = router;
