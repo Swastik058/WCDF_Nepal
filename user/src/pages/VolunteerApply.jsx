@@ -96,11 +96,19 @@ function VolunteerApply() {
   const alreadyApplied = statusData?.hasApplied && statusData?.status !== "not_applied";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <div className="mb-8 rounded-3xl bg-white p-8 shadow">
+      <section className="relative flex min-h-[300px] items-center justify-center overflow-hidden bg-[url('https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center px-6 py-20">
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="relative z-10 flex flex-col items-center gap-6 text-center">
+          <h1 className="text-4xl font-bold text-white drop-shadow sm:text-5xl">Become a Volunteer</h1>
+          <p className="max-w-2xl text-lg text-white/90">Join our team and make a real difference in the lives of vulnerable children and women.</p>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-5xl px-6 py-16 lg:px-12">
+        <div className="mb-8 rounded-lg bg-white p-8 shadow-sm border border-slate-200">
           <h1 className="text-3xl font-bold text-teal-900">Volunteer Registration</h1>
           <p className="mt-2 text-slate-600">
             Apply using your existing user account. Your application will stay pending until an admin approves it.
@@ -108,13 +116,13 @@ function VolunteerApply() {
         </div>
 
         {loading ? (
-          <div className="rounded-2xl bg-white p-8 text-center shadow">
+          <div className="rounded-lg bg-white p-8 text-center shadow-sm border border-slate-200">
             <p className="text-slate-600">Loading volunteer application status...</p>
           </div>
         ) : alreadyApplied ? (
           <VolunteerStatusPanel statusData={statusData} />
         ) : (
-          <div className="rounded-3xl bg-white p-8 shadow">
+          <div className="rounded-lg bg-white p-8 shadow-sm border border-slate-200">
             <div className="mb-6 grid gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-slate-700 md:grid-cols-2">
               <div>
                 <p className="font-semibold text-slate-900">Logged in user</p>

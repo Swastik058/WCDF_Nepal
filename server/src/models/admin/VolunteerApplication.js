@@ -131,6 +131,33 @@ const volunteerApplicationSchema = new mongoose.Schema(
       default: "",
       maxlength: [500, "Admin remarks cannot exceed 500 characters"],
     },
+    manualHourLogs: {
+      type: [
+        {
+          hours: {
+            type: Number,
+            required: true,
+            min: [0.25, "Hours must be at least 0.25"],
+          },
+          description: {
+            type: String,
+            trim: true,
+            default: "",
+            maxlength: [300, "Description cannot exceed 300 characters"],
+          },
+          loggedAt: {
+            type: Date,
+            default: Date.now,
+          },
+          loggedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
