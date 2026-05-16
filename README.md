@@ -120,9 +120,6 @@ The client will run on `http://localhost:3000`
 ### Donations
 - `POST /api/donation` - Create a donation (Optional auth)
 
-### Bookings
-- `POST /api/booking` - Create a booking
-- `GET /api/booking` - Get user bookings (Protected)
 
 ## Technologies Used
 
@@ -158,5 +155,24 @@ ISC
 
 Final Year Project - WCDF Nepal
 
-#
+#deployed contract address
+0x5FbDB2315678afecb367f032d93F642f64180aa3 
+
+DonationLedger Contract Address:
 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+Network: Hardhat Local
+RPC URL: http://127.0.0.1:8545
+
+# session expire login
+# token storage?
+# throttle used or not?
+# session expire donate
+# components into tailwind
+# lgin signup tailwind (imp)
+# form validation
+# routes bata 1/2 page ma nav use garne nachaine ma nagarne
+# userlog
+# throttle 
+# authenticstion attempts  
+# blockchain amount changed (mongo bd  bata fetch vairacha)

@@ -13,6 +13,7 @@ const links = [
   { label: 'Donations', to: '/dashboard/donations' },
   { label: 'Blockchain', to: '/dashboard/blockchain-records' },
   { label: 'Reports', to: '/dashboard/reports' },
+  { label: 'Expense Audit', to: '/dashboard/expense-audit' },
 ];
 
 const navClass = ({ isActive }) =>

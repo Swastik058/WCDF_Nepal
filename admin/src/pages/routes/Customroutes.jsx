@@ -13,6 +13,7 @@ import VolunteersPage from '../admin/VolunteersPage';
 import DonationsPage from '../admin/DonationsPage';
 import BlockchainRecordsPage from '../admin/BlockchainRecordsPage';
 import ReportsPage from '../admin/ReportsPage';
+import ExpenseAuditPage from '../admin/ExpenseAuditPage';
 
 const protectedLayout = (
   <ProtectedRoute>
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
       { path: 'donations', element: <DonationsPage /> },
       { path: 'blockchain-records', element: <BlockchainRecordsPage /> },
       { path: 'reports', element: <ReportsPage /> },
+      { path: 'expense-audit', element: <ExpenseAuditPage /> },
     ],
   },
   {

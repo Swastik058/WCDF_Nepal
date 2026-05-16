@@ -10,14 +10,26 @@ const calculateAge = (dateOfBirth) => {
 
 const buildPublicChild = (child) => ({
   id: child._id,
+  name: child.name || child.fullName,
   fullName: child.fullName,
+  description: child.description || child.shortBio,
   gender: child.gender,
+  image: child.image || child.profileImage,
   profileImage: child.profileImage,
+  yearlyCost: child.yearlyCost || 0,
+  costBreakdown: child.costBreakdown || {
+    education: 0,
+    food: 0,
+    healthcare: 0,
+    shelter: 0,
+    others: 0,
+  },
+  isSponsored: Boolean(child.isSponsored),
   shortBio: child.shortBio,
   interests: child.interests,
   joinedYear: child.joinedYear,
   slug: child.slug,
-  age: calculateAge(child.dateOfBirth),
+  age: child.age ?? calculateAge(child.dateOfBirth),
   createdAt: child.createdAt,
   updatedAt: child.updatedAt,
 });
@@ -31,7 +43,7 @@ exports.getPublicChildren = async (req, res) => {
       ],
     })
       .sort({ createdAt: -1 })
-      .select("fullName gender profileImage shortBio interests joinedYear slug dateOfBirth createdAt updatedAt")
+      .select("name fullName age gender image profileImage description shortBio yearlyCost costBreakdown isSponsored interests joinedYear slug dateOfBirth createdAt updatedAt")
       .lean();
 
     return res.status(200).json({
@@ -60,7 +72,7 @@ exports.getPublicChild = async (req, res) => {
     }
 
     const child = await Child.findOne(filter)
-      .select("fullName gender profileImage shortBio interests joinedYear slug dateOfBirth createdAt updatedAt")
+      .select("name fullName age gender image profileImage description shortBio yearlyCost costBreakdown isSponsored interests joinedYear slug dateOfBirth createdAt updatedAt")
       .lean();
 
     if (!child) {

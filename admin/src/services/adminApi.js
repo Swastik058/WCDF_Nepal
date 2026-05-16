@@ -1,3 +1,4 @@
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const parseResponse = async (response) => {
@@ -92,6 +93,29 @@ const del = async (path) => {
   return parseResponse(response);
 };
 
+// ─── Expense API ─────────────────────────────────────────────────────────────
+export const expenseApi = {
+  // Admin CRUD
+  getAll: (params) => get('/expenses', params),
+  getById: (id) => get(`/expenses/${id}`),
+  create: (payload) => post('/expenses', payload),
+  update: (id, payload) => put(`/expenses/${id}`, payload),
+  remove: (id) => del(`/expenses/${id}`),
+
+  // Receipt management (multipart/form-data)
+  uploadReceipts: (id, formData) => postForm(`/expenses/${id}/receipts`, formData),
+  deleteReceipt: (id, receiptId) => del(`/expenses/${id}/receipts/${receiptId}`),
+
+  // Analytics & extras
+  getAnalytics: (params) => get('/expenses/analytics', params),
+  getSponsorshipExpenses: () => get('/expenses/sponsorship'),
+  getAuditLogs: (params) => get('/expenses/audit-logs', params),
+
+  // Helpers used in the form dropdown
+  getChildren: () => get('/admin/children'),
+};
+
+// ─── Admin API ────────────────────────────────────────────────────────────────
 export const adminApi = {
   getDashboard: () => get('/admin/dashboard'),
   getDashboardStats: async () => {
@@ -106,6 +130,7 @@ export const adminApi = {
   },
 
   getChildren: () => get('/admin/children'),
+  uploadChildPhoto: (formData) => postForm('/admin/children/upload-photo', formData),
   createChild: (payload) => post('/admin/children', payload),
   updateChild: (id, payload) => put(`/admin/children/${id}`, payload),
   deleteChild: (id) => del(`/admin/children/${id}`),
@@ -142,8 +167,14 @@ export const adminApi = {
 
   getVolunteers: (params) => get('/admin/volunteers', params),
   updateVolunteerStatus: (id, payload) => patch(`/admin/volunteers/${id}/status`, payload),
+  logManualHours: (id, payload) => post(`/admin/volunteers/${id}/log-hours`, payload),
+  deleteManualHourLog: (id, logId) => del(`/admin/volunteers/${id}/log-hours/${logId}`),
 
   getDonations: (params) => get('/admin/donations', params),
   getBlockchainRecords: (params) => get('/admin/blockchain-records', params),
+  deleteBlockchainRecord: (id) => del(`/admin/blockchain-records/${id}`),
+  purgeStaleBlockchainRecords: () => del('/admin/blockchain-records/purge-stale'),
+  getBlockchainAuditReport: (params) => get('/admin/blockchain/audit-report', params),
+  verifyBlockchainHash: (transactionHash) => get(`/admin/blockchain/verify/${transactionHash}`),
   getReports: (params) => get('/admin/reports', params),
 };

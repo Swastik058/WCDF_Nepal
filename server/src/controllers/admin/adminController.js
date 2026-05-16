@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Child = require("../../models/admin/Child");
+const { uploadBufferToCloudinary } = require("../../utils/cloudinaryService");
 const Event = require("../../models/admin/Event");
 const Program = require("../../models/admin/Program");
 const Expense = require("../../models/admin/Expense");
@@ -1029,6 +1030,95 @@ exports.updateVolunteerStatus = async (req, res) => {
   }
 };
 
+exports.logManualHours = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { hours, description = "" } = req.body;
+
+    const parsedHours = Number(hours);
+    if (Number.isNaN(parsedHours) || parsedHours < 0.25) {
+      return badRequest(res, "Hours must be a number of at least 0.25");
+    }
+
+    const application = await VolunteerApplication.findById(id);
+    if (!application) {
+      return res.status(404).json({ message: "Volunteer application not found" });
+    }
+    if (application.status !== "approved") {
+      return badRequest(res, "Hours can only be logged for approved volunteers");
+    }
+
+    const logEntry = {
+      hours: parsedHours,
+      description: description.trim(),
+      loggedAt: new Date(),
+      loggedBy: req.user._id,
+    };
+
+    application.manualHourLogs.unshift(logEntry);
+    application.recentActivity.unshift({
+      title: "Hours logged manually",
+      description: `Admin logged ${parsedHours} hr(s)${description ? `: ${description.trim()}` : ""}.`,
+      activityDate: new Date(),
+    });
+    application.recentActivity = application.recentActivity.slice(0, 10);
+
+    const volunteer = await User.findById(application.userId);
+    if (!volunteer) {
+      return res.status(404).json({ message: "Volunteer user not found" });
+    }
+
+    volunteer.totalVolunteerHours = Math.max(0, (volunteer.totalVolunteerHours || 0) + parsedHours);
+    application.volunteerHours = volunteer.totalVolunteerHours;
+
+    await volunteer.save();
+    await application.save();
+
+    return res.status(200).json(application);
+  } catch (error) {
+    const errors = formatValidationError(error);
+    if (errors) return res.status(400).json({ message: "Validation error", errors });
+    return res.status(500).json({ message: "Failed to log volunteer hours" });
+  }
+};
+
+exports.deleteManualHourLog = async (req, res) => {
+  try {
+    const { id, logId } = req.params;
+
+    const application = await VolunteerApplication.findById(id);
+    if (!application) {
+      return res.status(404).json({ message: "Volunteer application not found" });
+    }
+
+    const logIndex = application.manualHourLogs.findIndex(
+      (l) => String(l._id) === logId
+    );
+    if (logIndex === -1) {
+      return res.status(404).json({ message: "Hour log entry not found" });
+    }
+
+    const removedHours = application.manualHourLogs[logIndex].hours;
+    application.manualHourLogs.splice(logIndex, 1);
+
+    const volunteer = await User.findById(application.userId);
+    if (volunteer) {
+      volunteer.totalVolunteerHours = Math.max(
+        0,
+        (volunteer.totalVolunteerHours || 0) - removedHours
+      );
+      application.volunteerHours = volunteer.totalVolunteerHours;
+      await volunteer.save();
+    }
+
+    await application.save();
+
+    return res.status(200).json(application);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete hour log entry" });
+  }
+};
+
 exports.getDonations = async (req, res) => {
   try {
     const {
@@ -1103,6 +1193,7 @@ exports.getBlockchainRecords = async (req, res) => {
       query.$or = [
         { transactionHash: { $regex: search, $options: "i" } },
         { donationReference: { $regex: search, $options: "i" } },
+        { donorName: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -1114,11 +1205,69 @@ exports.getBlockchainRecords = async (req, res) => {
       query.donationId = objectId;
     }
 
-    const records = await BlockchainTransaction.find(query)
-      .sort({ createdAt: -1 })
-      .populate("donationId", "donorName amount status transactionId createdAt");
+    const { getDonationFromChain, getDonationFromTx } = require("../../blockchain/ledger");
 
-    return res.status(200).json(records);
+    const records = await BlockchainTransaction.find(query)
+      .populate("donationId", "amount")
+      .sort({ createdAt: -1 });
+
+    const enriched = await Promise.all(
+      records.map(async (record) => {
+        const obj = record.toObject();
+        const mongoAmount = record.donationId?.amount ?? null;
+
+        let blockchainAmount = null;
+        let blockchainTimestamp = null;
+        let chainFound = false;
+
+        // Primary: read from contract state via chain donation ID
+        if (record.chainDonationId) {
+          const chainData = await getDonationFromChain(record.chainDonationId);
+          if (chainData.found) {
+            blockchainAmount = chainData.blockchainAmount;
+            blockchainTimestamp = chainData.blockchainTimestamp;
+            chainFound = true;
+          }
+        }
+
+        // Fallback for old records: receipt parsing via tx hash
+        if (!chainFound && record.transactionHash) {
+          const txData = await getDonationFromTx(record.transactionHash);
+          if (txData.found) {
+            blockchainAmount = txData.blockchainAmount;
+            blockchainTimestamp = txData.blockchainTimestamp;
+            chainFound = true;
+          }
+        }
+
+        // Last resort: stored snapshot (node offline)
+        if (!chainFound) {
+          blockchainAmount = record.amount ?? null;
+          blockchainTimestamp = record.blockchainTimestamp ?? null;
+        }
+
+        const isTampered =
+          mongoAmount !== null &&
+          blockchainAmount !== null &&
+          Math.round(mongoAmount * 100) !== Math.round(blockchainAmount * 100);
+
+        return {
+          ...obj,
+          donationId: record.donationId?._id ?? obj.donationId,
+          mongoAmount,
+          blockchainAmount,
+          blockchainTimestamp,
+          chainFound,
+          verificationStatus: isTampered
+            ? "Tampered"
+            : chainFound
+              ? "Verified"
+              : "Verified (offline)",
+        };
+      })
+    );
+
+    return res.status(200).json(enriched);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch blockchain records" });
   }
@@ -1224,5 +1373,133 @@ exports.getReports = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to generate reports" });
+  }
+};
+
+// BLOCKCHAIN AUDIT REPORT - Immutable Records for Audit
+exports.getBlockchainAuditReport = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const query = {};
+
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
+    }
+
+    const { getBlockchainDonationData } = require("../../blockchain/ledger");
+
+    const records = await BlockchainTransaction.find(query)
+      .populate("donationId", "amount")
+      .sort({ createdAt: -1 });
+
+    const auditData = await Promise.all(
+      records.map(async (record) => {
+        const chainData = await getBlockchainDonationData(record.transactionHash);
+        const blockchainAmount = chainData.found ? chainData.blockchainAmount : null;
+        const mongoAmount = record.donationId?.amount ?? null;
+
+        const isTampered =
+          mongoAmount !== null &&
+          blockchainAmount !== null &&
+          Math.round(mongoAmount * 100) !== Math.round(blockchainAmount * 100);
+
+        return {
+          donationReference: record.donationReference,
+          donorName: record.donorName || "N/A",
+          amount: blockchainAmount ?? 0,
+          mongoAmount,
+          transactionHash: record.transactionHash,
+          network: record.network,
+          status: record.status,
+          recordedDate: record.createdAt,
+          verificationStatus: !chainData.found ? "Unverifiable" : isTampered ? "Tampered" : "Verified",
+        };
+      })
+    );
+
+    return res.status(200).json({
+      totalRecords: auditData.length,
+      totalAmount: auditData.reduce((sum, r) => sum + r.amount, 0),
+      records: auditData,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to generate blockchain audit report" });
+  }
+};
+
+// DELETE a single blockchain record from MongoDB
+exports.deleteBlockchainRecord = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const record = await BlockchainTransaction.findByIdAndDelete(id);
+    if (!record) return res.status(404).json({ message: "Blockchain record not found" });
+    return res.status(200).json({ message: "Blockchain record deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete blockchain record" });
+  }
+};
+
+// PURGE blockchain records whose tx hashes are no longer found on the running node
+exports.purgeStaleBlockchainRecords = async (req, res) => {
+  try {
+    const { getDonationFromTx } = require("../../blockchain/ledger");
+    const all = await BlockchainTransaction.find({});
+
+    const staleIds = [];
+    await Promise.all(
+      all.map(async (record) => {
+        const chainData = await getDonationFromTx(record.transactionHash);
+        if (!chainData.found) staleIds.push(record._id);
+      })
+    );
+
+    if (staleIds.length === 0) {
+      return res.status(200).json({ message: "No stale records found", deleted: 0 });
+    }
+
+    await BlockchainTransaction.deleteMany({ _id: { $in: staleIds } });
+    return res.status(200).json({ message: `Purged ${staleIds.length} stale record(s)`, deleted: staleIds.length });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to purge stale records", error: error.message });
+  }
+};
+
+// VERIFY BLOCKCHAIN HASH - Check if hash is valid on blockchain
+exports.verifyBlockchainHash = async (req, res) => {
+  try {
+    const { transactionHash } = req.params;
+
+    if (!transactionHash) {
+      return badRequest(res, "Transaction hash is required");
+    }
+
+    const { getBlockchainDonationData } = require("../../blockchain/ledger");
+    const result = await getBlockchainDonationData(transactionHash);
+
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to verify blockchain hash", error: error.message });
+  }
+};
+
+exports.uploadChildPhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+    const result = await uploadBufferToCloudinary(req.file.buffer, "wcdf/children");
+    return res.status(200).json({ imageUrl: result.secure_url, publicId: result.public_id });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to upload child profile image" });
   }
 };

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const dotenv = require("dotenv");
+const path = require("path");
 const dbConnect = require("./config/dbConnect");
 
 // Load environment variables
@@ -18,6 +19,7 @@ app.use(
         process.env.CLIENT_URL,
         process.env.ADMIN_CLIENT_URL,
         "http://localhost:3000",
+        "http://localhost:3001",
         "http://localhost:5173",
       ].filter(Boolean);
 
@@ -34,6 +36,7 @@ app.use(
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // ================== DATABASE ==================
 dbConnect();
@@ -46,6 +49,10 @@ const adminRoutes = require("./routes/admin/adminRoutes");
 const childrenRoutes = require("./routes/childrenRoutes");
 const eventRoutes = require("./routes/EventRoutes");
 const volunteerRoutes = require("./routes/VolunteerRoutes");
+const galleryRoutes = require("./routes/galleryRoutes");
+const programRoutes = require("./routes/programRoutes");
+const blockchainRoutes = require("./routes/blockchainRoutes");
+const expenseRoutes = require("./routes/expenseRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/donation", donationRoutes);
@@ -53,8 +60,12 @@ app.use("/api/khalti", khaltiRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/children", childrenRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/gallery", galleryRoutes);
+app.use("/api/programs", programRoutes);
 app.use("/api/volunteers", volunteerRoutes);
 app.use("/api/volunteer", volunteerRoutes);
+app.use("/api/blockchain", blockchainRoutes);
+app.use("/api/expenses", expenseRoutes);
 
 // ================== DEFAULT ROUTE ==================
 app.get("/", (req, res) => {

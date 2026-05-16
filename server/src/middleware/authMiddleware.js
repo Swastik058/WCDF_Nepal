@@ -1,5 +1,5 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/UserModel");
+const jwt = require("jsonwebtoken"); // es model require doesnt work
+const User = require("../models/UserModel"); //usermodel doenst work, but this file is used in authcontroller which uses usermodel, so it should work here too. maybe its just vscode intellisense that is broken?
 
 const protect = async (req, res, next) => {
   try {
@@ -33,17 +33,8 @@ const adminOnly = (req, res, next) => {
 };
 
 const requireApprovedVolunteer = (req, res, next) => {
-  if (req.user.volunteerStatus === "pending") {
-    return res.status(403).json({ message: "Volunteer application is still pending" });
-  }
-
-  if (req.user.volunteerStatus === "rejected") {
-    return res.status(403).json({ message: "Volunteer application was rejected" });
-  }
-
-  if (!req.user.isVolunteer || req.user.volunteerStatus !== "approved") {
+  if (req.user.volunteerStatus !== "approved")
     return res.status(403).json({ message: "Approved volunteer access required" });
-  }
 
   next();
 };

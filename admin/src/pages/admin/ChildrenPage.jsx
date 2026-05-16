@@ -40,6 +40,7 @@ function ChildrenPage() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState('');
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId]);
@@ -69,18 +70,22 @@ function ChildrenPage() {
     }));
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((prev) => ({
-        ...prev,
-        image: reader.result || '',
-      }));
-    };
-    reader.readAsDataURL(file);
+    setImageUploading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+      const data = await adminApi.uploadChildPhoto(formData);
+      setForm((prev) => ({ ...prev, image: data.imageUrl }));
+    } catch (err) {
+      setError(err.message || 'Failed to upload image');
+    } finally {
+      setImageUploading(false);
+    }
   };
 
   const resetForm = () => {
@@ -218,8 +223,12 @@ function ChildrenPage() {
               type="file"
               accept="image/*"
               onChange={handleFileChange}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none file:cursor-pointer file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm"
+              disabled={imageUploading}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none file:cursor-pointer file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm disabled:opacity-50"
             />
+            {imageUploading && (
+              <span className="mt-1 block text-xs text-indigo-600">Uploading image…</span>
+            )}
           </label>
 
           {form.image ? (
@@ -292,7 +301,7 @@ function ChildrenPage() {
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || imageUploading}
               className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-70"
             >
               {submitting ? 'Saving...' : isEditing ? 'Update' : 'Create'}

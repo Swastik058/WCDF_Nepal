@@ -1,4 +1,5 @@
 const express = require("express");
+const multer = require("multer");
 const { galleryUpload } = require("../../middleware/uploadMiddleware");
 const {
   getDashboardSummary,
@@ -28,10 +29,26 @@ const {
   getVolunteerTrackingForActivity,
   getVolunteerApplications,
   updateVolunteerStatus,
+  logManualHours,
+  deleteManualHourLog,
   getDonations,
   getBlockchainRecords,
+  getBlockchainAuditReport,
+  verifyBlockchainHash,
+  deleteBlockchainRecord,
+  purgeStaleBlockchainRecords,
   getReports,
+  uploadChildPhoto,
 } = require("../../controllers/admin/adminController");
+
+const childPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) return cb(null, true);
+    cb(new Error("Only image files are allowed"));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 const {
   createGalleryCategory,
   getAllGalleryCategoriesAdmin,
@@ -55,6 +72,7 @@ router.get("/dashboard", getDashboardSummary);
 router.get("/stats", getAdminStats);
 
 router.get("/children", getChildren);
+router.post("/children/upload-photo", childPhotoUpload.single("photo"), uploadChildPhoto);
 router.post("/children", createChild);
 router.put("/children/:id", updateChild);
 router.delete("/children/:id", deleteChild);
@@ -91,9 +109,15 @@ router.delete("/expenses/:id", deleteExpense);
 
 router.get("/volunteers", getVolunteerApplications);
 router.patch("/volunteers/:id/status", updateVolunteerStatus);
+router.post("/volunteers/:id/log-hours", logManualHours);
+router.delete("/volunteers/:id/log-hours/:logId", deleteManualHourLog);
 
 router.get("/donations", getDonations);
 router.get("/blockchain-records", getBlockchainRecords);
+router.delete("/blockchain-records/purge-stale", purgeStaleBlockchainRecords);
+router.delete("/blockchain-records/:id", deleteBlockchainRecord);
+router.get("/blockchain/audit-report", getBlockchainAuditReport);
+router.get("/blockchain/verify/:transactionHash", verifyBlockchainHash);
 router.get("/reports", getReports);
 
 module.exports = router;
