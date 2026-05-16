@@ -14,26 +14,29 @@ function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <div className="h-5 w-5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-700" />
-            <div className="h-5 w-5 rounded-full bg-gradient-to-br from-amber-400 to-orange-500" />
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        {/* Logo */}
+        <Link to="/" className="flex flex-shrink-0 items-center gap-2">
+          <div className="h-10 w-10 rounded-full border-2 border-emerald-500">
+            <img src="/mayaghar.jpg" alt="" />
           </div>
-          <span className="text-lg font-bold text-slate-900">Mayaghar</span>
+          <span className="text-lg font-bold text-slate-900">WCDF-Nepal</span>
         </Link>
 
-        <div className="order-3 flex w-full flex-wrap items-center justify-start gap-4 lg:order-2 lg:w-auto lg:justify-center">
+        {/* Nav links */}
+        <div className="hidden items-center gap-5 xl:flex">
           <Link to="/" className={navLinkClass}>Home</Link>
+          <Link to="/about" className={navLinkClass}>About Us</Link>
           <Link to="/children" className={navLinkClass}>Children</Link>
-          <a href="#about" className={navLinkClass}>About Us</a>
-          <a href="#gallery" className={navLinkClass}>Gallery</a>
-          <a href="#contact" className={navLinkClass}>Contact</a>
-          <a href="#programs" className={navLinkClass}>Programs</a>
+          <Link to="/gallery" className={navLinkClass}>Gallery</Link>
+          <Link to="/contact" className={navLinkClass}>Contact</Link>
+          <Link to="/programs" className={navLinkClass}>Programs</Link>
           <Link to="/events" className={navLinkClass}>Events/Campaigns</Link>
+          <Link to="/transparency" className={navLinkClass}>Transparency</Link>
         </div>
 
-        <div className="order-2 flex items-center gap-3 lg:order-3">
+        {/* User controls */}
+        <div className="flex flex-shrink-0 items-center gap-3">
           {user ? (
             <>
               <span className="hidden text-sm text-slate-500 sm:inline">{user.name}</span>

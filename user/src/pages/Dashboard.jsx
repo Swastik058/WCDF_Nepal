@@ -58,7 +58,8 @@ function Dashboard() {
 
       setStats({
         totalDonations: list.length,
-        totalAmount: completed.reduce((sum, d) => sum + d.amount, 0),
+        // Sum only amounts confirmed on-chain; never trust MongoDB amount
+        totalAmount: completed.reduce((sum, d) => sum + (d.blockchainAmount ?? 0), 0),
         completedDonations: completed.length,
         pendingDonations: pending.length,
       });
@@ -142,6 +143,11 @@ function Dashboard() {
       minute: "2-digit",
     });
 
+  const shortTxHash = (hash) => {
+    if (!hash || hash.length < 12) return hash;
+    return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+  };
+
   const getStatusBadge = (status) => {
     const map = {
       completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -184,16 +190,22 @@ function Dashboard() {
     doc.setFontSize(12);
     doc.text("SUCCESS", 485, 65, { align: "center" });
 
+    const receiptAmount = donation.blockchainAmount;
+    const receiptDate = donation.blockchainTimestamp
+      ? formatReceiptDate(donation.blockchainTimestamp)
+      : formatReceiptDate(donation.createdAt);
+
     const details = [
       [`Receipt ID:`, donation._id],
       [`Donor Name:`, donation.donorName],
       [`Donor Email:`, donation.email],
-      [`Amount:`, `NPR ${donation.amount.toLocaleString()}`],
+      [`Amount (Blockchain):`, receiptAmount != null ? `NPR ${Number(receiptAmount).toLocaleString()}` : "—"],
       [`Purpose:`, donation.purpose],
       [`Payment Method:`, donation.paymentMethod],
       [`Transaction ID:`, donation.transactionId || "N/A"],
-      [`Donation Status:`, donation.status],
-      [`Donation Date:`, formatReceiptDate(donation.createdAt)],
+      ...(donation.blockchainTxHash ? [[`Blockchain Hash:`, `${donation.blockchainTxHash.slice(0, 10)}...${donation.blockchainTxHash.slice(-6)}`]] : []),
+      [`Blockchain Status:`, donation.verificationStatus || "Unverified"],
+      [`Recorded On-Chain:`, receiptDate],
     ];
 
     let y = 145;
@@ -308,8 +320,12 @@ function Dashboard() {
                     <p className="mt-2 text-sm font-semibold text-slate-900">{formatReceiptDate(previewDonation.createdAt)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">NPR {previewDonation.amount.toLocaleString()}</p>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Amount (Blockchain)</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                      {previewDonation.blockchainAmount != null
+                        ? `NPR ${Number(previewDonation.blockchainAmount).toLocaleString()}`
+                        : <span className="text-slate-400">—</span>}
+                    </p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Payment Method</p>
@@ -397,25 +413,61 @@ function Dashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {donations.map((donation) => (
-                <div key={donation._id} className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+              {donations.map((donation) => {
+                const vs = donation.verificationStatus; // "Verified" | "Tampered" | "Unverified"
+                const isPending = donation.status === "pending";
+
+                return (
+                <div
+                  key={donation._id}
+                  className={`rounded-xl border p-5 ${vs === "Tampered" ? "border-red-300 bg-red-50" : "border-slate-200 bg-slate-50"}`}
+                >
                   <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <strong className="text-lg text-teal-900">{donation.purpose}</strong>
-                    <span className="text-lg font-bold text-teal-900">NPR {donation.amount.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-teal-900">
+                      {donation.blockchainAmount != null
+                        ? `NPR ${Number(donation.blockchainAmount).toLocaleString()}`
+                        : isPending
+                          ? `NPR ${Number(donation.amount).toLocaleString()}`
+                          : <span className="text-slate-400">—</span>}
+                    </span>
                   </div>
 
                   <div className="mb-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
-                    <span>{formatDate(donation.createdAt)}</span>
+                    <span>{formatDate(donation.blockchainTimestamp ?? donation.createdAt)}</span>
                     <span>{donation.paymentMethod}</span>
                   </div>
 
                   {donation.transactionId ? (
-                    <p className="mb-3 text-xs text-slate-500">TXN: {donation.transactionId}</p>
+                    <p className="mb-2 text-xs text-slate-500">TXN: {donation.transactionId}</p>
+                  ) : null}
+
+                  {donation.blockchainTxHash ? (
+                    <p className="mb-2 font-mono text-xs text-slate-500">
+                      Blockchain: {shortTxHash(donation.blockchainTxHash)}
+                    </p>
                   ) : null}
 
                   <div className="mb-4 flex flex-wrap items-center gap-3">
                     <div>{getStatusBadge(donation.status)}</div>
-                    {donation.status === "completed" ? (
+
+                    {(vs === "Verified" || vs === "Verified (offline)") && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                        {vs === "Verified" ? "Verified on Blockchain" : "Verified (node offline)"}
+                      </span>
+                    )}
+                    {vs === "Tampered" && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                        Tampered — Amount Mismatch
+                      </span>
+                    )}
+                    {vs === "Unverified" && donation.status === "completed" && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
+                        Not on Blockchain
+                      </span>
+                    )}
+
+                    {(vs === "Verified" || vs === "Verified (offline)") && donation.status === "completed" ? (
                       <button
                         onClick={() => setPreviewDonation(donation)}
                         className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900"
@@ -425,7 +477,8 @@ function Dashboard() {
                     ) : null}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

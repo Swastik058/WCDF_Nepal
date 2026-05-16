@@ -57,29 +57,24 @@ function Events() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-white">
       <Navbar />
 
-      <section className="relative h-[380px] overflow-hidden">
-        <img src="https://images.unsplash.com/photo-1559027615-cd4628902d4a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Community gathering" className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="absolute bottom-8 left-6 z-10 text-white lg:left-12">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-2xl font-bold uppercase tracking-wide">Programs</span>
-            <span>/</span>
-            <span>Home / Events / Campaign</span>
-          </div>
+      <section className="relative flex min-h-[300px] items-center justify-center overflow-hidden bg-[url('https://images.unsplash.com/photo-1559027615-cd4628902d4a?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
+          <h1 className="text-4xl font-bold text-white drop-shadow sm:text-5xl">Events & Campaigns</h1>
+          <p className="max-w-2xl text-lg text-white/90">Join hands to create brighter futures. Find an event and make a difference today!</p>
         </div>
       </section>
 
-      <section className="bg-white py-14">
-        <div className="mx-auto w-full max-w-7xl px-6">
+      <section className="px-6 py-16 lg:px-12">
+        <div className="mx-auto max-w-7xl">
           <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-slate-800">Recent Campaign</h2>
-              <p className="mt-2 max-w-2xl text-slate-600">Join hands to create brighter futures. Find an event and make a difference today!</p>
+              <h2 className="text-3xl font-bold text-slate-900">Recent Campaigns</h2>
+              <p className="mt-2 max-w-2xl text-slate-600">Explore our latest projects and campaigns supporting vulnerable children and women.</p>
             </div>
-            <button className="rounded-md bg-emerald-800 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900">Admin Created Events</button>
           </div>
 
           {loading ? <p className="text-sm text-slate-600">Loading events...</p> : null}

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 function Footer() {
   return (
     <footer className="bg-slate-950 text-slate-100">
@@ -18,7 +20,7 @@ function Footer() {
           <div className="flex flex-wrap gap-4 text-sm">
             <a href="#home" className="text-slate-300 transition hover:text-white">Home</a>
             <a href="#about" className="text-slate-300 transition hover:text-white">About Us</a>
-            <a href="#gallery" className="text-slate-300 transition hover:text-white">Gallery</a>
+            <Link to="/gallery" className="text-slate-300 transition hover:text-white">Gallery</Link>
             <a href="#contact" className="text-slate-300 transition hover:text-white">Contact</a>
             <a href="#programs" className="text-slate-300 transition hover:text-white">Programs</a>
             <a href="#events" className="text-slate-300 transition hover:text-white">Events/Campaign</a>

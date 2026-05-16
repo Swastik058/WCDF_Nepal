@@ -17,6 +17,12 @@ import VolunteerDashboard from '../pages/VolunteerDashboard'
 import VolunteerProfile from '../pages/VolunteerProfile'
 import VolunteerHours from '../pages/VolunteerHours'
 import VolunteerActivities from '../pages/VolunteerActivities'
+import Gallery from '../pages/Gallery'
+import Programs from '../pages/Programs'
+import ProgramDetail from '../pages/ProgramDetail'
+import AboutUs from '../pages/AboutUs'
+import Contact from '../pages/Contact'
+import ExpenseTransparency from '../pages/ExpenseTransparency'
 
 function AppRoutes() {
   return (
@@ -28,6 +34,11 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/events" element={<Events />} />
+      <Route path="/programs" element={<Programs />} />
+      <Route path="/programs/:slug" element={<ProgramDetail />} />
+      <Route path="/gallery" element={<Gallery />} />
+      <Route path="/about" element={<AboutUs />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/children" element={<Children />} />
       <Route path="/children/:identifier" element={<ChildProfile />} />
       <Route
@@ -102,6 +113,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/transparency" element={<ExpenseTransparency />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
