@@ -28,6 +28,22 @@ const blockchainTransactionSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "failed"],
       default: "confirmed",
     },
+    // Auto-incremented ID assigned by the contract — used to call getDonation(id)
+    chainDonationId: {
+      type: Number,
+    },
+    // Snapshot stored at confirmation time (paisa→NPR from parsed event)
+    amount: {
+      type: Number,
+      required: true,
+    },
+    blockchainTimestamp: {
+      type: Date,
+    },
+    donorName: {
+      type: String,
+      trim: true,
+    },
   },
   { timestamps: true }
 );
