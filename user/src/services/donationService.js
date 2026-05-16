@@ -66,5 +66,11 @@ export const initiateKhaltiDonation = async (donationData) => {
   }
 }
 
+// GET /donation/stats — public total raised
+export const getPublicDonationStats = async () => {
+  const response = await axios.get(`${API_URL}/donation/stats`)
+  return response.data
+}
+
 // Note: verifyKhaltiPayment is no longer needed on frontend
 // Verification is handled entirely by backend redirect flow

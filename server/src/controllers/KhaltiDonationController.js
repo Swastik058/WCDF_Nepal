@@ -147,24 +147,26 @@ exports.verifyKhaltiPayment = async (req, res) => {
         userId: donation.userId,
       });
 
-      //  BLOCKCHAIN RECORD (ONLY AFTER CONFIRMED PAYMENT)
-      let blockchainTxHash = null;
+      // BLOCKCHAIN RECORD (ONLY AFTER CONFIRMED PAYMENT)
+      // Contract auto-assigns a chain ID and stores amount + timestamp on-chain.
+      let chainRecord = null;
       try {
-        blockchainTxHash = await recordDonationOnChain(
-          donation.createdAt.getTime(),
-          Math.round(donation.amount * 100)
-        );
+        chainRecord = await recordDonationOnChain(Math.round(donation.amount * 100));
       } catch (chainError) {
         console.error("Blockchain recording failed:", chainError.message);
       }
 
-      if (blockchainTxHash) {
+      if (chainRecord) {
         await BlockchainTransaction.create({
           donationId: donation._id,
           donationReference: donation._id.toString(),
-          transactionHash: blockchainTxHash,
+          transactionHash: chainRecord.txHash,
+          chainDonationId: chainRecord.chainDonationId,
           network: process.env.BLOCKCHAIN_NETWORK || "hardhat",
           status: "confirmed",
+          amount: chainRecord.blockchainAmount,
+          blockchainTimestamp: chainRecord.blockchainTimestamp,
+          donorName: donation.donorName,
         });
       }
 

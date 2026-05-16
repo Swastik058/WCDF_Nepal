@@ -1,9 +1,25 @@
 const Donation = require("../models/Donation");
 const Child = require("../models/admin/Child");
+const BlockchainTransaction = require("../models/admin/BlockchainTransaction");
+const { getDonationFromChain, getDonationFromTx } = require("../blockchain/ledger");
 
 const findSponsorshipChild = async (childId) => {
   if (!childId) return null;
   return Child.findById(childId).select("name fullName yearlyCost isSponsored");
+};
+
+// GET /donation/stats — public, no auth
+exports.getPublicStats = async (req, res) => {
+  try {
+    const result = await Donation.aggregate([
+      { $match: { status: "completed" } },
+      { $group: { _id: null, totalRaised: { $sum: "$amount" }, donorCount: { $sum: 1 } } },
+    ]);
+    const { totalRaised = 0, donorCount = 0 } = result[0] || {};
+    return res.status(200).json({ totalRaised, donorCount });
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to fetch donation stats" });
+  }
 };
 
 // POST /donation - Create a new donation
@@ -143,11 +159,69 @@ exports.getUserDonations = async (req, res) => {
 
     const donations = await Donation.find({ userId })
       .sort({ createdAt: -1 })
-      .select('donorName email amount paymentMethod purpose status transactionId createdAt childId isChildSponsorship');
+      .select('_id donorName email amount paymentMethod purpose status transactionId createdAt childId isChildSponsorship');
+
+    // Enrich each donation with data read from blockchain contract state.
+    // getDonationFromChain(id) calls contract.getDonation(id) directly —
+    // no receipt parsing, no tx hash needed.
+    const enrichedDonations = await Promise.all(donations.map(async (donation) => {
+      const donationObj = donation.toObject();
+
+      const blockchainTx = await BlockchainTransaction.findOne({ donationId: donation._id });
+
+      if (!blockchainTx) {
+        donationObj.blockchainAmount = null;
+        donationObj.blockchainTxHash = null;
+        donationObj.blockchainTimestamp = null;
+        donationObj.chainDonationId = null;
+        donationObj.verificationStatus = "Unverified";
+        return donationObj;
+      }
+
+      donationObj.blockchainTxHash = blockchainTx.transactionHash;
+      donationObj.chainDonationId = blockchainTx.chainDonationId ?? null;
+
+      // Primary: read directly from contract state using the chain-assigned ID
+      if (blockchainTx.chainDonationId) {
+        const chainData = await getDonationFromChain(blockchainTx.chainDonationId);
+
+        if (chainData.found) {
+          donationObj.blockchainAmount = chainData.blockchainAmount;
+          donationObj.blockchainTimestamp = chainData.blockchainTimestamp;
+
+          const amountsMatch =
+            Math.round(donation.amount * 100) === Math.round(chainData.blockchainAmount * 100);
+          donationObj.verificationStatus = amountsMatch ? "Verified" : "Tampered";
+          return donationObj;
+        }
+      }
+
+      // Fallback for old records (no chainDonationId): try receipt parsing
+      if (blockchainTx.transactionHash) {
+        const txData = await getDonationFromTx(blockchainTx.transactionHash);
+        if (txData.found) {
+          donationObj.blockchainAmount = txData.blockchainAmount;
+          donationObj.blockchainTimestamp = txData.blockchainTimestamp;
+          const amountsMatch =
+            Math.round(donation.amount * 100) === Math.round(txData.blockchainAmount * 100);
+          donationObj.verificationStatus = amountsMatch ? "Verified" : "Tampered";
+          return donationObj;
+        }
+      }
+
+      // Node offline or old session — use stored snapshot
+      donationObj.blockchainAmount = blockchainTx.amount ?? null;
+      donationObj.blockchainTimestamp = blockchainTx.blockchainTimestamp ?? null;
+      const storedMatch =
+        blockchainTx.amount != null &&
+        Math.round(donation.amount * 100) === Math.round(blockchainTx.amount * 100);
+      donationObj.verificationStatus = storedMatch ? "Verified (offline)" : "Tampered";
+      return donationObj;
+    }));
 
     res.status(200).json({
       message: "Donations retrieved successfully",
-      donations
+      donations: enrichedDonations
     });
 
   } catch (err) {
